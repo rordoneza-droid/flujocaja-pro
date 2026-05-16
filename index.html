@@ -293,6 +293,10 @@ const FIREBASE_CONFIG = {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
       <span>Inicio</span>
     </button>
+    <button class="tbBtn" onclick="openPassModal()" title="Cambiar contraseña">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <span>Contraseña</span>
+    </button>
     <button class="tbBtn danger" onclick="logout()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       <span>Salir</span>
@@ -307,6 +311,30 @@ const FIREBASE_CONFIG = {
 
 <!-- IMG MODAL -->
 <div id="imgModal">
+
+<!-- PASS MODAL -->
+<div id="passModal" style="position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:400;display:none;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)">
+  <div style="background:var(--surf);border:1px solid var(--bo2);border-radius:var(--rx);width:100%;max-width:400px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.4rem;border-bottom:1px solid var(--bo)">
+      <span style="font-weight:700;font-size:1rem">🔑 Cambiar contraseña</span>
+      <button onclick="closePassModal()" style="background:none;border:none;color:var(--mu);font-size:1.2rem;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:1.4rem">
+      <div id="passSupSection"></div>
+      <div class="frow"><label>Contraseña actual</label>
+        <input type="password" id="pActual" placeholder="Tu contraseña actual" autocomplete="off"></div>
+      <div class="frow"><label>Nueva contraseña</label>
+        <input type="password" id="pNueva" placeholder="Mínimo 6 caracteres" autocomplete="off"></div>
+      <div class="frow"><label>Confirmar nueva contraseña</label>
+        <input type="password" id="pConfirm" placeholder="Repite la nueva contraseña" autocomplete="off"></div>
+      <div id="passErr" style="color:var(--re);font-size:.8rem;min-height:18px;margin-bottom:.5rem"></div>
+    </div>
+    <div style="padding:1rem 1.4rem;border-top:1px solid var(--bo);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btnSec" onclick="closePassModal()">Cancelar</button>
+      <button class="btnAcc" onclick="savePass()">Guardar</button>
+    </div>
+  </div>
+</div>
 
 <!-- EDIT MODAL -->
 <div id="editModal" style="position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;display:none;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)">
@@ -348,7 +376,6 @@ const MODULES_OP=[
   {id:'egreso',   icon:'↓',  iconBg:'var(--reb)', title:'Registrar Egreso',  desc:'Captura un gasto con fecha, monto y comprobante'},
   {id:'ingreso',  icon:'↑',  iconBg:'var(--grb)', title:'Registrar Ingreso', desc:'Registra dinero recibido en efectivo o banco'},
   {id:'historial',icon:'☰',  iconBg:'var(--blb)', title:'Mis Registros',     desc:'Consulta todos tus movimientos registrados'},
-  {id:'config',   icon:'⚙',  iconBg:'var(--surf3)',title:'Configuración',    desc:'Administra categorías y bancos del sistema'},
 ];
 const MODULES_SUP=[
   {id:'flujo',    icon:'◈',  iconBg:'var(--amb)', title:'Flujo de Caja',    desc:'Saldo en tiempo real por banco y efectivo'},
@@ -408,6 +435,73 @@ function demoSub(cb){_demoCbs.push(cb);cb(DStore.mov());return()=>{_demoCbs=_dem
 /* ══════════════════════════════════════════
    CONFIGURACIÓN
 ══════════════════════════════════════════ */
+/* ══════════════════════════════════════════
+   CONTRASEÑAS
+══════════════════════════════════════════ */
+let passwords={};  // {userId: pass}
+
+function initPasswords(cb){
+  // Carga contraseñas desde Firestore, si no usa las hardcodeadas
+  USERS.forEach(u=>passwords[u.id]=u.pass);
+  if(DEMO_MODE){
+    const saved=JSON.parse(localStorage.getItem('fcPass')||'{}');
+    Object.assign(passwords,saved);
+    if(cb)cb(); return;
+  }
+  db.collection('config').doc('passwords').get().then(doc=>{
+    if(doc.exists) Object.assign(passwords,doc.data());
+    if(cb)cb();
+  }).catch(()=>{if(cb)cb();});
+}
+function savePassToStore(){
+  if(DEMO_MODE){
+    localStorage.setItem('fcPass',JSON.stringify(passwords)); return;
+  }
+  db.collection('config').doc('passwords').set(passwords);
+}
+function openPassModal(){
+  const isSup=currentUser.role==='supervisor';
+  // Supervisores pueden resetear contraseña de cualquier usuario
+  const supSection=document.getElementById('passSupSection');
+  if(isSup){
+    supSection.innerHTML=`<div class="frow">
+      <label>Resetear contraseña de usuario</label>
+      <select id="pUserSel">
+        <option value="">— Cambiar la mía —</option>
+        ${USERS.filter(u=>u.id!==currentUser.id).map(u=>`<option value="${u.id}">${u.name}</option>`).join('')}
+      </select>
+    </div>`;
+  } else { supSection.innerHTML=''; }
+  ['pActual','pNueva','pConfirm'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('passErr').textContent='';
+  document.getElementById('passModal').style.display='flex';
+}
+function closePassModal(){
+  document.getElementById('passModal').style.display='none';
+}
+async function savePass(){
+  const isSup=currentUser.role==='supervisor';
+  const targetSel=document.getElementById('pUserSel');
+  const targetId=targetSel?targetSel.value||currentUser.id:currentUser.id;
+  const actual=document.getElementById('pActual').value;
+  const nueva=document.getElementById('pNueva').value;
+  const confirm=document.getElementById('pConfirm').value;
+  const errEl=document.getElementById('passErr');
+  // Si cambia la suya propia, validar contraseña actual
+  if(targetId===currentUser.id){
+    if(actual!==passwords[currentUser.id]){errEl.textContent='Contraseña actual incorrecta';return;}
+  }
+  if(nueva.length<6){errEl.textContent='La nueva contraseña debe tener al menos 6 caracteres';return;}
+  if(nueva!==confirm){errEl.textContent='Las contraseñas no coinciden';return;}
+  passwords[targetId]=nueva;
+  // Si el usuario cambió su propia, actualizar currentUser
+  if(targetId===currentUser.id) currentUser.pass=nueva;
+  savePassToStore();
+  const targetName=USERS.find(u=>u.id===targetId)?.name||'usuario';
+  showToast(`Contraseña de ${targetName} actualizada ✓`);
+  closePassModal();
+}
+
 function loadConfig(cb){
   if(DEMO_MODE){
     const s=DStore.cfg();
@@ -468,12 +562,12 @@ function selectUser(id){
 function doLogin(){
   if(!selectedUser){showToast('Selecciona un usuario','err');return;}
   const pin=document.getElementById('pinInput').value.trim();
-  if(pin!==selectedUser.pass){document.getElementById('pinErr').textContent='Contraseña incorrecta';document.getElementById('pinInput').value='';return;}
+  if(pin!==(passwords[selectedUser.id]||selectedUser.pass)){document.getElementById('pinErr').textContent='Contraseña incorrecta';document.getElementById('pinInput').value='';return;}
   currentUser=selectedUser;
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('app').style.display='block';
   document.getElementById('topUserName').textContent=currentUser.name+' · '+(currentUser.role==='supervisor'?'Supervisor':'Operador');
-  loadConfig(()=>goHome());
+  initPasswords(()=>loadConfig(()=>goHome()));
 }
 document.getElementById('pinInput').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 function logout(){
@@ -740,7 +834,7 @@ function filterH(){
     <td class="desc" title="${m.descripcion||''}">${m.descripcion||'—'}</td>
     <td>
       ${m.imagenURL
-        ?`<button class="iconBtn eye" onclick="openImg('${m.imagenURL}')">${svgEye()} Ver</button>`
+        ?`<button class="iconBtn eye" onclick="abrirImg('${m.id}')">${svgEye()} Ver</button>`
         :'<span style="color:var(--mu);font-size:.78rem">Sin imagen</span>'}
       ${canEdit?`<label for="replFile_${m.id}" class="iconBtn" style="color:var(--am);cursor:pointer" title="Subir/reemplazar imagen">
         📎<input type="file" id="replFile_${m.id}" accept="image/*" style="display:none" onchange="replaceImg('${m.id}',this)">
@@ -994,6 +1088,13 @@ function marcar(id,val){
 /* ══════════════════════════════════════════
    CONFIGURACIÓN
 ══════════════════════════════════════════ */
+function resetPassSup(userId,userName){
+  const nueva=prompt(`Nueva contraseña para ${userName}:`);
+  if(!nueva||nueva.length<6){if(nueva!==null)showToast('Mínimo 6 caracteres','err');return;}
+  passwords[userId]=nueva;
+  savePassToStore();
+  showToast(`Contraseña de ${userName} reseteada ✓`);
+}
 function renderConfig(){
   document.getElementById('main').innerHTML=`
     <div class="pageHeader"><h2>Configuración</h2><p>Administra categorías y bancos del sistema</p></div>
@@ -1050,9 +1151,10 @@ function renderConfig(){
               <div style="width:32px;height:32px;border-radius:50%;background:${u.bg};color:${u.color};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem">${u.name[0]}</div>
               <div>
                 <div class="cn">${u.name}</div>
-                <div class="ct">${u.role==='supervisor'?'Supervisor':'Operador'} · ${u.pass}</div>
+                <div class="ct">${u.role==='supervisor'?'Supervisor':'Operador'}</div>
               </div>
             </div>
+            ${currentUser.role==='supervisor'?`<button class="btnSec" style="font-size:.75rem;padding:.35rem .7rem" onclick="resetPassSup('${u.id}','${u.name}')">🔑 Resetear</button>`:''}
           </div>`).join('')}
       </div>
     </div>`;
@@ -1061,6 +1163,11 @@ function renderConfig(){
 /* ══════════════════════════════════════════
    IMAGEN ZOOM
 ══════════════════════════════════════════ */
+function abrirImg(id){
+  const m=[...movimientosData,...baicaoData].find(x=>x.id===id);
+  if(m&&m.imagenURL) openImg(m.imagenURL);
+  else showToast('Sin imagen disponible','err');
+}
 function openImg(url){
   document.getElementById('imgModalSrc').src=url;
   document.getElementById('imgModalOpen').href=url;
