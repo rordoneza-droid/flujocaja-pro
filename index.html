@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>FlujoCaja Pro</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f5a428">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FlujoCaja">
+<script src="https://unpkg.com/firebase@10.7.1/compat/app.js"></script>
+<script src="https://unpkg.com/firebase@10.7.1/compat/firestore.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#090c16;--surf:#0f1422;--surf2:#161c2f;--surf3:#1d2540;
+  --bo:rgba(255,255,255,0.07);--bo2:rgba(255,255,255,0.13);
+  --tx:#dde3f2;--mu:#66738f;
+  --ac:#f5a428;--acd:#c47e15;
+  --gr:#22c55e;--grb:rgba(34,197,94,0.13);--grbo:rgba(34,197,94,0.3);
+  --re:#f87171;--reb:rgba(248,113,113,0.13);
+  --bl:#60a5fa;--blb:rgba(96,165,250,0.1);
+  --am:#fbbf24;--amb:rgba(251,191,36,0.12);
+  --r:10px;--rl:14px;--rx:20px;
+  --topH:60px;
+}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;font-size:15px}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--surf3);border-radius:4px}
+button,input,select,textarea{font-family:inherit;outline:none}
+.hidden{display:none!important}
+.mono{font-family:'DM Mono',monospace}
+
+/* ══ TOP BAR ══ */
+#topbar{
+  position:fixed;top:0;left:0;right:0;height:var(--topH);z-index:100;
+  background:rgba(9,12,22,0.92);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--bo2);
+  display:flex;align-items:center;padding:0 1rem;gap:10px;
+}
+#topbar .logo{font-size:1.05rem;font-weight:700;letter-spacing:-.5px;margin-right:auto}
+#topbar .logo em{color:var(--ac);font-style:normal}
+#topbar .topUser{font-size:.8rem;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px}
+.tbBtn{
+  display:flex;align-items:center;gap:5px;padding:.42rem .85rem;
+  border-radius:var(--r);border:1px solid var(--bo2);background:var(--surf2);
+  color:var(--tx);font-size:.8rem;cursor:pointer;transition:.15s;white-space:nowrap
+}
+.tbBtn:hover{background:var(--surf3);border-color:var(--bo2)}
+.tbBtn.danger{border-color:var(--re);color:var(--re)}
+.tbBtn.danger:hover{background:var(--reb)}
+.tbBtn svg{width:14px;height:14px;flex-shrink:0}
+
+/* ══ MAIN AREA ══ */
+#pageWrap{padding-top:calc(var(--topH) + 1.5rem);padding-bottom:2rem;min-height:100vh}
+.container{width:100%;max-width:1000px;margin:0 auto;padding:0 1.2rem}
+
+/* ══ LOGIN ══ */
+#loginScreen{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;
+  background:radial-gradient(ellipse 60% 40% at 20% 30%,rgba(245,164,40,.07) 0,transparent 100%),
+             radial-gradient(ellipse 50% 40% at 80% 70%,rgba(96,165,250,.05) 0,transparent 100%)
+}
+.lc{width:100%;max-width:460px}
+.lhead{text-align:center;margin-bottom:2rem}
+.lhead h1{font-size:2rem;font-weight:700;letter-spacing:-1px}
+.lhead h1 em{color:var(--ac);font-style:normal}
+.lhead p{color:var(--mu);font-size:.88rem;margin-top:5px}
+.lbox{background:var(--surf);border:1px solid var(--bo2);border-radius:var(--rx);padding:2rem}
+.lbox h3{text-align:center;font-size:.72rem;text-transform:uppercase;letter-spacing:2.5px;color:var(--mu);margin-bottom:1.2rem}
+.ugrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.5rem}
+.ucard{
+  background:var(--surf2);border:1.5px solid var(--bo);border-radius:var(--rl);
+  padding:1.1rem .9rem;cursor:pointer;transition:.2s;text-align:center
+}
+.ucard:hover{border-color:var(--ac);background:var(--surf3);transform:translateY(-2px)}
+.ucard .av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;margin:0 auto 8px}
+.ucard .un{font-weight:600;font-size:.88rem}
+.ucard .ur{font-size:.72rem;color:var(--mu);margin-top:2px}
+.pinArea{border-top:1px solid var(--bo);padding-top:1.2rem}
+.pinArea label{display:block;font-size:.8rem;color:var(--mu);margin-bottom:7px;text-align:center}
+.pinRow{display:flex;gap:8px}
+.pinRow input{flex:1;background:var(--surf2);border:1px solid var(--bo2);border-radius:var(--r);padding:.7rem .9rem;color:var(--tx);font-size:.93rem}
+.pinRow input:focus{border-color:var(--ac)}
+.btnLogin{width:100%;background:var(--ac);color:#000;font-weight:700;font-size:.95rem;border-radius:var(--r);padding:.75rem;margin-top:8px;border:none;cursor:pointer;transition:.15s}
+.btnLogin:hover{background:var(--acd)}
+.pinErr{color:var(--re);font-size:.8rem;text-align:center;margin-top:8px;min-height:18px}
+
+/* ══ HOME MÓDULOS ══ */
+.homeGreet{margin-bottom:2rem}
+.homeGreet h2{font-size:1.5rem;font-weight:700}
+.homeGreet p{color:var(--mu);font-size:.88rem;margin-top:4px}
+.moduleGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.moduleCard{
+  background:var(--surf);border:1px solid var(--bo);border-radius:var(--rl);
+  padding:1.4rem;cursor:pointer;transition:.2s;position:relative;overflow:hidden
+}
+.moduleCard:hover{border-color:var(--bo2);background:var(--surf2);transform:translateY(-2px)}
+.moduleCard .micon{width:40px;height:40px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;margin-bottom:1rem;font-size:1.3rem}
+.moduleCard h3{font-size:.95rem;font-weight:600;margin-bottom:.3rem}
+.moduleCard p{font-size:.78rem;color:var(--mu);line-height:1.5}
+.moduleCard .marrow{position:absolute;top:1.2rem;right:1.2rem;color:var(--mu);font-size:.9rem}
+
+/* ══ PAGE HEADER ══ */
+.pageHeader{margin-bottom:1.8rem}
+.pageHeader h2{font-size:1.3rem;font-weight:700}
+.pageHeader p{color:var(--mu);font-size:.85rem;margin-top:3px}
+
+/* ══ CARDS STATS ══ */
+.statsGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:1.6rem}
+.statCard{background:var(--surf);border:1px solid var(--bo);border-radius:var(--rl);padding:1.1rem 1.2rem;position:relative;overflow:hidden}
+.statCard::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.statCard.ing::before{background:var(--gr)}
+.statCard.egr::before{background:var(--re)}
+.statCard.sal::before{background:var(--ac)}
+.stl{font-size:.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--mu);margin-bottom:.4rem}
+.stv{font-size:1.5rem;font-weight:700;font-family:'DM Mono',monospace}
+.stv.pos{color:var(--gr)}.stv.neg{color:var(--re)}.stv.neu{color:var(--ac)}
+
+/* ══ FLUJO CARDS ══ */
+.flujoGrid{display:grid;gap:12px}
+.flujoCard{background:var(--surf);border:1px solid var(--bo);border-radius:var(--rl);overflow:hidden}
+.flujoHead{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.1rem;border-bottom:1px solid var(--bo);background:var(--surf2)}
+.flujoHead .fn{font-weight:600;font-size:.9rem}
+.fbadge{font-size:.7rem;padding:3px 9px;border-radius:20px;font-weight:600}
+.fbadge.ef{background:var(--amb);color:var(--am)}
+.fbadge.ba{background:var(--blb);color:var(--bl)}
+.flujoRow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--bo)}
+.flujoCell{background:var(--surf);padding:.85rem 1rem;text-align:center}
+.fcl{font-size:.68rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--mu);margin-bottom:.3rem}
+.fcv{font-size:1.05rem;font-weight:600;font-family:'DM Mono',monospace}
+.fcv.pos{color:var(--gr)}.fcv.neg{color:var(--re)}.fcv.neu{color:var(--ac)}
+
+/* ══ TABLA ══ */
+.tableWrap{background:var(--surf);border:1px solid var(--bo);border-radius:var(--rl);overflow:hidden}
+.tableTop{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.1rem;border-bottom:1px solid var(--bo);gap:10px;flex-wrap:wrap}
+.tableTop .tt{font-weight:600;font-size:.9rem;flex-shrink:0}
+.filters{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.filters input,.filters select{background:var(--surf2);border:1px solid var(--bo2);border-radius:var(--r);padding:.4rem .7rem;color:var(--tx);font-size:.8rem}
+.filters input:focus,.filters select:focus{border-color:var(--ac)}
+.filters select option{background:var(--surf2)}
+.tableScroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;min-width:600px}
+thead th{font-size:.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--mu);padding:.65rem .9rem;text-align:left;background:var(--surf2);font-weight:600;white-space:nowrap}
+tbody tr{border-top:1px solid var(--bo);transition:.15s}
+tbody tr:hover{background:var(--surf2)}
+tbody td{padding:.7rem .9rem;font-size:.85rem;vertical-align:middle}
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:.7rem;font-weight:600;white-space:nowrap}
+.badge.ing{background:var(--grb);color:var(--gr)}
+.badge.egr{background:var(--reb);color:var(--re)}
+.badge.pe{background:var(--amb);color:var(--am)}
+.badge.ok{background:var(--grb);color:var(--gr)}
+.badge.ba{background:var(--blb);color:var(--bl)}
+.badge.ef{background:var(--amb);color:var(--am)}
+.amt{font-family:'DM Mono',monospace;font-weight:500;white-space:nowrap}
+.amt.pos{color:var(--gr)}.amt.neg{color:var(--re)}
+.iconBtn{background:none;border:none;cursor:pointer;padding:5px 7px;border-radius:6px;transition:.15s;display:inline-flex;align-items:center;gap:4px;font-size:.78rem}
+.iconBtn:hover{background:var(--surf3)}
+.iconBtn.eye{color:var(--bl)}.iconBtn.del{color:var(--re)}.iconBtn.chk{color:var(--gr)}.iconBtn.undo{color:var(--mu)}
+.iconBtn svg{width:14px;height:14px}
+.emptyRow td{text-align:center;padding:2.5rem;color:var(--mu);font-size:.85rem}
+td.desc{max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ══ FORM ══ */
+.formCard{background:var(--surf);border:1px solid var(--bo);border-radius:var(--rl);padding:1.6rem;max-width:620px}
+.fgrid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.frow{margin-bottom:1rem}
+.frow label{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--mu);margin-bottom:5px;font-weight:600}
+.frow input,.frow select,.frow textarea{width:100%;background:var(--surf2);border:1px solid var(--bo2);border-radius:var(--r);padding:.65rem .85rem;color:var(--tx);font-size:.9rem;transition:.15s}
+.frow input:focus,.frow select:focus,.frow textarea:focus{border-color:var(--ac)}
+.frow select option{background:var(--surf2)}
+.frow textarea{resize:vertical;min-height:75px}
+.uploadArea{border:2px dashed var(--bo2);border-radius:var(--r);padding:1.3rem;text-align:center;cursor:pointer;transition:.2s;position:relative}
+.uploadArea:hover{border-color:var(--ac);background:var(--surf2)}
+.uploadArea p{font-size:.8rem;color:var(--mu);margin-top:6px}
+.uploadArea svg{color:var(--mu)}
+.previewImg{margin-top:10px;position:relative;display:inline-block}
+.previewImg img{max-width:100%;max-height:150px;border-radius:var(--r);border:1px solid var(--bo)}
+.previewImg .rmImg{position:absolute;top:-6px;right:-6px;background:var(--re);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:.75rem;display:flex;align-items:center;justify-content:center}
+.formBtns{display:flex;gap:10px;margin-top:.5rem;flex-wrap:wrap}
+.btnSec{background:var(--surf2);border:1px solid var(--bo2);color:var(--tx);border-radius:var(--r);padding:.6rem 1.1rem;font-size:.85rem;cursor:pointer;transition:.15s}
+.btnSec:hover{background:var(--surf3)}
+.btnAcc{background:var(--ac);color:#000;font-weight:700;border-radius:var(--r);padding:.6rem 1.3rem;font-size:.88rem;cursor:pointer;transition:.15s;border:none}
+.btnAcc:hover{background:var(--acd)}
+.btnAcc:disabled{opacity:.5;cursor:not-allowed}
+
+/* ══ CONFIG ══ */
+.configSection{background:var(--surf);border:1px solid var(--bo);border-radius:var(--rl);margin-bottom:1.2rem;overflow:hidden;max-width:600px}
+.configHead{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1.1rem;border-bottom:1px solid var(--bo);background:var(--surf2)}
+.configHead h3{font-weight:600;font-size:.9rem}
+.configItem{display:flex;align-items:center;justify-content:space-between;padding:.5rem .8rem;border-radius:var(--r);margin:.2rem .4rem;transition:.15s}
+.configItem:hover{background:var(--surf2)}
+.configItem .cn{font-size:.87rem}
+.configItem .ct{font-size:.7rem;color:var(--mu)}
+.inlineForm{display:flex;gap:7px;padding:.7rem;border-top:1px solid var(--bo)}
+.inlineForm input{flex:1;background:var(--surf2);border:1px solid var(--bo2);border-radius:var(--r);padding:.48rem .75rem;color:var(--tx);font-size:.83rem}
+.inlineForm input:focus{border-color:var(--ac)}
+.inlineForm button{background:var(--ac);color:#000;border:none;border-radius:var(--r);padding:.48rem .9rem;font-weight:700;font-size:.8rem;cursor:pointer;white-space:nowrap}
+
+/* ══ IMG MODAL ══ */
+#imgModal{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:1rem}
+#imgModal.open{display:flex}
+#imgModal img{max-width:92vw;max-height:78vh;border-radius:var(--r);object-fit:contain}
+.imgBtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.imgBtns a,.imgBtns button{background:var(--surf2);border:1px solid var(--bo2);border-radius:var(--r);padding:.5rem 1rem;font-size:.82rem;color:var(--tx);cursor:pointer;text-decoration:none;font-family:inherit;transition:.15s}
+.imgBtns a:hover,.imgBtns button:hover{background:var(--surf3)}
+
+/* ══ TOAST ══ */
+#toast{position:fixed;bottom:1.2rem;right:1.2rem;z-index:999;display:flex;flex-direction:column;gap:7px;pointer-events:none}
+.toastItem{background:var(--surf3);border:1px solid var(--bo2);border-radius:var(--r);padding:.65rem 1rem;font-size:.83rem;min-width:200px;animation:toastIn .2s ease;display:flex;align-items:center;gap:8px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.toastItem.ok{border-left:3px solid var(--gr)}.toastItem.err{border-left:3px solid var(--re)}.toastItem.warn{border-left:3px solid var(--am)}
+@keyframes toastIn{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ══ REPORT BUTTONS ══ */
+.reportBar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;align-items:center}
+.reportBar span{font-size:.8rem;color:var(--mu);margin-right:4px}
+.btnPDF{background:var(--reb);border:1px solid var(--rebo);color:var(--re);border-radius:var(--r);
+  padding:.5rem 1rem;font-size:.82rem;font-weight:600;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:5px}
+.btnPDF:hover{background:rgba(248,113,113,.22)}
+.btnXLS{background:var(--grb);border:1px solid var(--grbo);color:var(--gr);border-radius:var(--r);
+  padding:.5rem 1rem;font-size:.82rem;font-weight:600;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:5px}
+.btnXLS:hover{background:rgba(34,197,94,.22)}
+
+/* ══ RESPONSIVE ══ */
+@media(max-width:600px){
+  .fgrid2{grid-template-columns:1fr}
+  .ugrid{grid-template-columns:1fr 1fr}
+  .moduleGrid{grid-template-columns:1fr 1fr}
+  .statsGrid{grid-template-columns:1fr 1fr}
+  .flujoRow{grid-template-columns:1fr 1fr 1fr}
+  .container{padding:0 .8rem}
+  #topbar .topUser{display:none}
+  .topRole{display:none}
+  .tbBtn span{display:none}
+  .tbBtn{padding:.42rem .55rem}
+  table{min-width:500px}
+  .formCard{padding:1.1rem}
+}
+@media(max-width:380px){
+  .ugrid{grid-template-columns:1fr}
+  .moduleGrid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ FIREBASE CONFIG ═══ -->
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDwTaPl-d_pM6B0oPlBlV3jLStzKiuksXA",
+  authDomain: "flujocaja-pro.firebaseapp.com",
+  projectId: "flujocaja-pro",
+  storageBucket: "flujocaja-pro.firebasestorage.app",
+  messagingSenderId: "501192516608",
+  appId: "1:501192516608:web:26581ef8652855d13964e5"
+};
+</script>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="loginScreen">
+  <div class="lc">
+    <div class="lhead">
+      <h1>Flujo<em>Caja</em> Pro</h1>
+      <p>Sistema de control de ingresos y egresos</p>
+    </div>
+    <div class="lbox">
+      <h3>Selecciona tu usuario</h3>
+      <div class="ugrid" id="userGrid"></div>
+      <div class="pinArea">
+        <label id="pinLabel">Selecciona un usuario para continuar</label>
+        <div class="pinRow">
+          <input type="password" id="pinInput" placeholder="Contraseña" autocomplete="off">
+          <button class="tbBtn" style="padding:.65rem 1rem;font-size:.88rem" onclick="doLogin()">Entrar →</button>
+        </div>
+        <div class="pinErr" id="pinErr"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div id="app" style="display:none">
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="logo">Flujo<em>Caja</em></div>
+    <div class="topUser" id="topUserName"></div>
+    <button class="tbBtn" id="btnBack" style="display:none" onclick="goHome()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      <span>Inicio</span>
+    </button>
+    <button class="tbBtn danger" onclick="logout()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span>Salir</span>
+    </button>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="pageWrap">
+    <div class="container" id="main"></div>
+  </div>
+</div>
+
+<!-- IMG MODAL -->
+<div id="imgModal">
+  <img id="imgModalSrc" src="" alt="Comprobante">
+  <div class="imgBtns">
+    <a id="imgModalOpen" href="" target="_blank">↗ Abrir en nueva pestaña</a>
+    <a id="imgModalDl" href="" download="comprobante.jpg" target="_blank">⬇ Descargar</a>
+    <button onclick="closeImg()">✕ Cerrar</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════
+   USUARIOS
+══════════════════════════════════════════ */
+const USERS=[
+  {id:'manuel',    name:'Manuel',            role:'operador',  pass:'manuel2026',    color:'#f59e0b',bg:'rgba(245,158,11,.15)'},
+  {id:'luisobando',name:'Luis Obando',        role:'operador',  pass:'luisobando2026',color:'#34d399',bg:'rgba(52,211,153,.15)'},
+  {id:'jonnathan', name:'Jonnathan Palacios', role:'supervisor',pass:'jonnathan2026', color:'#60a5fa',bg:'rgba(96,165,250,.15)'},
+  {id:'fernando',  name:'Fernando Guzmán',    role:'supervisor',pass:'fernando2026',  color:'#a78bfa',bg:'rgba(167,139,250,.15)'},
+];
+
+const MODULES_OP=[
+  {id:'egreso',   icon:'↓',  iconBg:'var(--reb)', title:'Registrar Egreso',  desc:'Captura un gasto con fecha, monto y comprobante'},
+  {id:'ingreso',  icon:'↑',  iconBg:'var(--grb)', title:'Registrar Ingreso', desc:'Registra dinero recibido en efectivo o banco'},
+  {id:'historial',icon:'☰',  iconBg:'var(--blb)', title:'Mis Registros',     desc:'Consulta todos tus movimientos registrados'},
+  {id:'config',   icon:'⚙',  iconBg:'var(--surf3)',title:'Configuración',    desc:'Administra categorías y bancos del sistema'},
+];
+const MODULES_SUP=[
+  {id:'flujo',    icon:'◈',  iconBg:'var(--amb)', title:'Flujo de Caja',    desc:'Saldo en tiempo real por banco y efectivo'},
+  {id:'baicao',   icon:'✓',  iconBg:'var(--grb)', title:'Vista Baicao',     desc:'Egresos para subir al sistema Baicao'},
+  {id:'historial',icon:'☰',  iconBg:'var(--blb)', title:'Todos los Registros',desc:'Historial completo de todos los operadores'},
+  {id:'egreso',   icon:'↓',  iconBg:'var(--reb)', title:'Nuevo Egreso',     desc:'Registrar un egreso en el sistema'},
+  {id:'ingreso',  icon:'↑',  iconBg:'var(--grb)', title:'Nuevo Ingreso',    desc:'Registrar un ingreso en el sistema'},
+  {id:'config',   icon:'⚙',  iconBg:'var(--surf3)',title:'Configuración',   desc:'Administra categorías y bancos'},
+];
+
+/* ══════════════════════════════════════════
+   ESTADO
+══════════════════════════════════════════ */
+let currentUser=null,selectedUser=null;
+let db=null;
+let DEMO_MODE=false;
+let listeners=[];
+let configData={
+  categorias:[],
+  metodos:[
+    {id:'efectivo', nombre:'Efectivo', tipo:'efectivo'},
+    {id:'banorte',  nombre:'Banorte',  tipo:'banco'},
+    {id:'santander',nombre:'Santander',tipo:'banco'},
+  ]
+};
+let movimientosData=[];
+let baicaoData=[];
+let _demoCbs=[];
+
+/* ══════════════════════════════════════════
+   FIREBASE / DEMO
+══════════════════════════════════════════ */
+function initFirebase(){
+  try{
+    if(typeof firebase==='undefined') throw new Error('no-sdk');
+    if(FIREBASE_CONFIG.apiKey==='TU_API_KEY'||!FIREBASE_CONFIG.apiKey) throw new Error('no-config');
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db=firebase.firestore();
+    showToast('Conectado a Firebase ✓','ok');
+  }catch(e){
+    DEMO_MODE=true;
+    if(e.message==='no-sdk') showToast('Modo demo — abre el archivo desde un servidor web','warn');
+    else showToast('Modo demo local activo (configura Firebase para multiusuario)','warn');
+  }
+}
+
+/* Demo helpers */
+const DStore={
+  mov(){try{return JSON.parse(localStorage.getItem('fcMov')||'[]')}catch{return[]}},
+  saveMov(arr){localStorage.setItem('fcMov',JSON.stringify(arr))},
+  cfg(){try{return JSON.parse(localStorage.getItem('fcCfg')||'null')}catch{return null}},
+  saveCfg(d){localStorage.setItem('fcCfg',JSON.stringify(d))},
+};
+function demoNotify(){const d=DStore.mov();_demoCbs.forEach(cb=>cb(d));}
+function demoSub(cb){_demoCbs.push(cb);cb(DStore.mov());return()=>{_demoCbs=_demoCbs.filter(x=>x!==cb)};}
+
+/* ══════════════════════════════════════════
+   CONFIGURACIÓN
+══════════════════════════════════════════ */
+function loadConfig(cb){
+  if(DEMO_MODE){
+    const s=DStore.cfg();
+    if(s){configData.categorias=s.categorias||[];configData.metodos=s.metodos||configData.metodos;}
+    cb&&cb();return;
+  }
+  db.collection('config').doc('data').get().then(doc=>{
+    if(doc.exists){const d=doc.data();configData.categorias=d.categorias||[];configData.metodos=d.metodos||configData.metodos;}
+    else saveConfig();
+    cb&&cb();
+  }).catch(()=>cb&&cb());
+}
+function saveConfig(){
+  if(DEMO_MODE){DStore.saveCfg(configData);return;}
+  if(db) db.collection('config').doc('data').set(configData);
+}
+function addCategoria(nombre){
+  nombre=nombre.trim();if(!nombre)return;
+  if(configData.categorias.find(c=>c.nombre.toLowerCase()===nombre.toLowerCase())){showToast('Ya existe','err');return;}
+  configData.categorias.push({id:'c'+Date.now(),nombre});
+  saveConfig();showToast('Categoría agregada');renderConfig();
+}
+function delCategoria(id){
+  configData.categorias=configData.categorias.filter(c=>c.id!==id);
+  saveConfig();renderConfig();
+}
+function addMetodo(nombre){
+  nombre=nombre.trim();if(!nombre)return;
+  if(configData.metodos.find(m=>m.nombre.toLowerCase()===nombre.toLowerCase())){showToast('Ya existe','err');return;}
+  configData.metodos.push({id:'m'+Date.now(),nombre,tipo:'banco'});
+  saveConfig();showToast('Banco/método agregado');renderConfig();
+}
+function delMetodo(id){
+  if(['efectivo','banorte','santander'].includes(id)){showToast('No se puede eliminar','err');return;}
+  configData.metodos=configData.metodos.filter(m=>m.id!==id);
+  saveConfig();renderConfig();
+}
+
+/* ══════════════════════════════════════════
+   LOGIN
+══════════════════════════════════════════ */
+function renderLogin(){
+  document.getElementById('userGrid').innerHTML=USERS.map(u=>`
+    <div class="ucard" onclick="selectUser('${u.id}')" id="uc_${u.id}">
+      <div class="av" style="background:${u.bg};color:${u.color}">${u.name[0]}</div>
+      <div class="un">${u.name}</div>
+      <div class="ur">${u.role==='supervisor'?'Supervisor':'Operador'}</div>
+    </div>`).join('');
+}
+function selectUser(id){
+  selectedUser=USERS.find(u=>u.id===id);
+  document.querySelectorAll('.ucard').forEach(c=>c.style.borderColor='');
+  document.getElementById('uc_'+id).style.borderColor=selectedUser.color;
+  document.getElementById('pinLabel').textContent='Contraseña para '+selectedUser.name;
+  document.getElementById('pinInput').focus();
+  document.getElementById('pinErr').textContent='';
+}
+function doLogin(){
+  if(!selectedUser){showToast('Selecciona un usuario','err');return;}
+  const pin=document.getElementById('pinInput').value.trim();
+  if(pin!==selectedUser.pass){document.getElementById('pinErr').textContent='Contraseña incorrecta';document.getElementById('pinInput').value='';return;}
+  currentUser=selectedUser;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('topUserName').textContent=currentUser.name+' · '+(currentUser.role==='supervisor'?'Supervisor':'Operador');
+  loadConfig(()=>goHome());
+}
+document.getElementById('pinInput').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+function logout(){
+  listeners.forEach(u=>u&&u());listeners=[];_demoCbs=[];
+  currentUser=null;selectedUser=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('pinInput').value='';
+  document.getElementById('pinErr').textContent='';
+  document.querySelectorAll('.ucard').forEach(c=>c.style.borderColor='');
+}
+
+/* ══════════════════════════════════════════
+   NAVEGACIÓN
+══════════════════════════════════════════ */
+function goHome(){
+  listeners.forEach(u=>u&&u());listeners=[];
+  document.getElementById('btnBack').style.display='none';
+  const mods=currentUser.role==='supervisor'?MODULES_SUP:MODULES_OP;
+  document.getElementById('main').innerHTML=`
+    <div class="homeGreet">
+      <h2>Bienvenido, ${currentUser.name.split(' ')[0]} 👋</h2>
+      <p>¿Qué deseas hacer hoy?</p>
+    </div>
+    <div class="moduleGrid">
+      ${mods.map(m=>`
+        <div class="moduleCard" onclick="navigate('${m.id}')">
+          <div class="micon" style="background:${m.iconBg}">${m.icon}</div>
+          <h3>${m.title}</h3>
+          <p>${m.desc}</p>
+          <span class="marrow">→</span>
+        </div>`).join('')}
+    </div>`;
+}
+function navigate(page){
+  listeners.forEach(u=>u&&u());listeners=[];
+  document.getElementById('btnBack').style.display='flex';
+  const main=document.getElementById('main');
+  if(page==='egreso')    renderForm('egreso');
+  else if(page==='ingreso') renderForm('ingreso');
+  else if(page==='historial') renderHistorial();
+  else if(page==='flujo') renderFlujo();
+  else if(page==='baicao') renderBaicao();
+  else if(page==='config') renderConfig();
+}
+
+/* ══════════════════════════════════════════
+   FORMULARIO EGRESO / INGRESO
+══════════════════════════════════════════ */
+let previewFile=null;
+function renderForm(tipo){
+  const esE=tipo==='egreso';
+  const catOpts=configData.categorias.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('');
+  const metOpts=configData.metodos.map(m=>`<option value="${m.id}">${m.nombre}</option>`).join('');
+  document.getElementById('main').innerHTML=`
+    <div class="pageHeader">
+      <h2>${esE?'Registrar Egreso':'Registrar Ingreso'}</h2>
+      <p>${esE?'Captura un gasto con comprobante':'Registra un ingreso recibido'}</p>
+    </div>
+    <div class="formCard">
+      <div class="fgrid2">
+        <div class="frow">
+          <label>Categoría</label>
+          <select id="fCat">
+            <option value="">Seleccionar...</option>
+            ${catOpts||'<option disabled>Sin categorías — ve a Configuración</option>'}
+          </select>
+        </div>
+        <div class="frow">
+          <label>Fecha</label>
+          <input type="date" id="fFecha" value="${today()}">
+        </div>
+        <div class="frow">
+          <label>Importe</label>
+          <input type="number" id="fImporte" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="frow">
+          <label>Método de pago</label>
+          <select id="fMetodo">
+            <option value="">Seleccionar...</option>
+            ${metOpts}
+          </select>
+        </div>
+      </div>
+      <div class="frow">
+        <label>Descripción</label>
+        <textarea id="fDesc" placeholder="Describe el ${esE?'gasto':'ingreso'}..."></textarea>
+      </div>
+      <div class="frow">
+        <label>Comprobante (imagen)</label>
+        <div class="uploadArea" onclick="document.getElementById('fFile').click()">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <p>Clic o arrastra la imagen aquí</p>
+          <input type="file" id="fFile" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="previewFn(this)">
+        </div>
+        <div id="prevWrap"></div>
+      </div>
+      <div class="formBtns">
+        <button class="btnSec" onclick="clearForm()">Limpiar</button>
+        <button class="btnAcc" id="btnSave" onclick="guardar('${tipo}')">
+          ${esE?'Guardar Egreso':'Guardar Ingreso'}
+        </button>
+      </div>
+    </div>`;
+  previewFile=null;
+}
+function previewFn(input){
+  previewFile=input.files[0];if(!previewFile)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    document.getElementById('prevWrap').innerHTML=`
+      <div class="previewImg" style="margin-top:10px">
+        <img src="${e.target.result}">
+        <button class="rmImg" onclick="removePreview()">✕</button>
+      </div>`;
+  };
+  r.readAsDataURL(previewFile);
+}
+function removePreview(){previewFile=null;document.getElementById('prevWrap').innerHTML='';document.getElementById('fFile').value='';}
+function clearForm(){
+  ['fCat','fImporte','fMetodo','fDesc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('fFecha').value=today();
+  removePreview();
+}
+async function guardar(tipo){
+  const cat=v('fCat'),fecha=v('fFecha'),importe=parseFloat(v('fImporte')),metodo=v('fMetodo'),desc=v('fDesc');
+  if(!cat){showToast('Selecciona una categoría','err');return;}
+  if(!fecha){showToast('Selecciona la fecha','err');return;}
+  if(!importe||importe<=0){showToast('Ingresa un importe válido','err');return;}
+  if(!metodo){showToast('Selecciona el método de pago','err');return;}
+  const btn=document.getElementById('btnSave');
+  btn.disabled=true;btn.textContent='Guardando...';
+  const met=configData.metodos.find(m=>m.id===metodo);
+  const datos={categoria:cat,fecha,importe,metodoPagoId:metodo,metodoPago:met?met.nombre:metodo,descripcion:desc};
+  const ok=await saveMovimiento(tipo,datos,previewFile);
+  btn.disabled=false;btn.textContent=tipo==='egreso'?'Guardar Egreso':'Guardar Ingreso';
+  if(ok){showToast(tipo==='egreso'?'Egreso guardado ✓':'Ingreso guardado ✓');clearForm();}
+}
+
+/* ══════════════════════════════════════════
+   COMPRIMIR IMAGEN
+══════════════════════════════════════════ */
+function compressImage(file, maxKB=280, maxDim=1200){
+  return new Promise(res=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      let w=img.width, h=img.height;
+      if(w>maxDim||h>maxDim){
+        if(w>h){h=Math.round(h*maxDim/w);w=maxDim;}
+        else{w=Math.round(w*maxDim/h);h=maxDim;}
+      }
+      const canvas=document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      let q=0.82;
+      const tryQ=()=>{
+        canvas.toBlob(blob=>{
+          if(!blob){res(file);return;}
+          if(blob.size<=maxKB*1024||q<0.25){
+            res(new File([blob],file.name.replace(/\.[^.]+$/,'.jpg'),{type:'image/jpeg'}));
+          } else { q-=0.08; tryQ(); }
+        },'image/jpeg',q);
+      };
+      tryQ();
+    };
+    img.onerror=()=>res(file);
+    img.src=url;
+  });
+}
+
+/* ══════════════════════════════════════════
+   GUARDAR MOVIMIENTO
+══════════════════════════════════════════ */
+async function saveMovimiento(tipo,datos,file){
+  try{
+    let imagenURL='';
+    if(DEMO_MODE){
+      if(file){showToast('Comprimiendo imagen...','ok');file=await compressImage(file);imagenURL=await fileToB64(file);}
+      const id='m'+Date.now();
+      const arr=DStore.mov();
+      arr.unshift({id,...datos,tipo,imagenURL,responsable:currentUser.name,responsableId:currentUser.id,creadoEn:new Date().toISOString(),baicao:false});
+      DStore.saveMov(arr);demoNotify();return true;
+    }
+    const docRef=db.collection('movimientos').doc();
+    if(file){
+      showToast('Comprimiendo imagen...','ok');
+      file=await compressImage(file);
+      imagenURL=await fileToB64(file);
+    }
+    await docRef.set({...datos,tipo,imagenURL,responsable:currentUser.name,responsableId:currentUser.id,creadoEn:firebase.firestore.FieldValue.serverTimestamp(),baicao:false});
+    return true;
+  }catch(e){showToast('Error: '+e.message,'err');return false;}
+}
+function fileToB64(file){return new Promise(res=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.readAsDataURL(file);});}
+
+/* ══════════════════════════════════════════
+   HISTORIAL
+══════════════════════════════════════════ */
+function renderHistorial(){
+  const isSup=currentUser.role==='supervisor';
+  document.getElementById('main').innerHTML=`
+    <div class="pageHeader"><h2>${isSup?'Todos los Registros':'Mis Registros'}</h2><p>Historial de movimientos</p></div>
+    ${isSup?`<div class="reportBar"><span>Exportar:</span><button class="btnPDF" onclick="reportHistorialPDF()">📄 PDF</button><button class="btnXLS" onclick="reportHistorialXLS()">📊 Excel</button></div>`:''}
+    <div class="tableWrap">
+      <div class="tableTop">
+        <span class="tt">Movimientos</span>
+        <div class="filters">
+          <select id="hTipo" onchange="filterH()"><option value="">Todos</option><option value="ingreso">Ingresos</option><option value="egreso">Egresos</option></select>
+          <select id="hMet" onchange="filterH()">
+            <option value="">Todos los métodos</option>
+            ${configData.metodos.map(m=>`<option value="${m.id}">${m.nombre}</option>`).join('')}
+          </select>
+          ${isSup?`<select id="hResp" onchange="filterH()"><option value="">Todos</option>${USERS.map(u=>`<option value="${u.id}">${u.name}</option>`).join('')}</select>`:''}
+          <input type="date" id="hD" onchange="filterH()" title="Desde">
+          <input type="date" id="hH" onchange="filterH()" title="Hasta">
+        </div>
+      </div>
+      <div class="tableScroll">
+        <table>
+          <thead><tr>
+            <th>Tipo</th><th>Categoría</th><th>Fecha</th><th>Importe</th>
+            <th>Método</th><th>Responsable</th><th>Descripción</th>
+            <th>Comprobante</th>${isSup?'<th></th>':''}
+          </tr></thead>
+          <tbody id="hBody"><tr class="emptyRow"><td colspan="9">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>`;
+  subMovimientos();
+}
+function subMovimientos(){
+  if(DEMO_MODE){
+    const unsub=demoSub(data=>{
+      movimientosData=currentUser.role==='operador'?data.filter(m=>m.responsableId===currentUser.id):data;
+      filterH();
+    });
+    listeners.push(unsub);return;
+  }
+  let q=db.collection('movimientos').orderBy('creadoEn','desc');
+  if(currentUser.role==='operador') q=q.where('responsableId','==',currentUser.id);
+  const unsub=q.onSnapshot(snap=>{movimientosData=snap.docs.map(d=>({id:d.id,...d.data()}));filterH();});
+  listeners.push(unsub);
+}
+function filterH(){
+  const tipo=v('hTipo'),met=v('hMet'),resp=v('hResp'),desde=v('hD'),hasta=v('hH');
+  const isSup=currentUser.role==='supervisor';
+  let data=[...movimientosData];
+  if(tipo) data=data.filter(m=>m.tipo===tipo);
+  if(met) data=data.filter(m=>m.metodoPagoId===met);
+  if(resp) data=data.filter(m=>m.responsableId===resp);
+  if(desde) data=data.filter(m=>m.fecha>=desde);
+  if(hasta) data=data.filter(m=>m.fecha<=hasta);
+  const tb=document.getElementById('hBody');if(!tb)return;
+  if(!data.length){tb.innerHTML=`<tr class="emptyRow"><td colspan="${isSup?9:8}">Sin registros</td></tr>`;return;}
+  tb.innerHTML=data.map(m=>`<tr>
+    <td><span class="badge ${m.tipo==='ingreso'?'ing':'egr'}">${m.tipo==='ingreso'?'↑ Ingreso':'↓ Egreso'}</span></td>
+    <td>${m.categoria||'—'}</td><td>${m.fecha||'—'}</td>
+    <td class="amt ${m.tipo==='ingreso'?'pos':'neg'}">${m.tipo==='ingreso'?'+':'−'}$${num(m.importe)}</td>
+    <td>${m.metodoPago||'—'}</td><td>${m.responsable||'—'}</td>
+    <td class="desc" title="${m.descripcion||''}">${m.descripcion||'—'}</td>
+    <td>${m.imagenURL?`<button class="iconBtn eye" onclick="openImg('${m.imagenURL}')">${svgEye()} Ver</button>`:'<span style="color:var(--mu);font-size:.78rem">—</span>'}</td>
+    ${isSup?`<td><button class="iconBtn del" onclick="delMov('${m.id}')">${svgDel()}</button></td>`:''}
+  </tr>`).join('');
+}
+function delMov(id){
+  if(!confirm('¿Eliminar este registro?'))return;
+  if(DEMO_MODE){const arr=DStore.mov().filter(m=>m.id!==id);DStore.saveMov(arr);demoNotify();showToast('Eliminado');return;}
+  db.collection('movimientos').doc(id).delete().then(()=>showToast('Eliminado'));
+}
+
+/* ══════════════════════════════════════════
+   FLUJO DE CAJA
+══════════════════════════════════════════ */
+function renderFlujo(){
+  document.getElementById('main').innerHTML=`
+    <div class="pageHeader"><h2>Flujo de Caja</h2><p>Ingresos, egresos y saldo por método de pago</p></div>
+    <div class="statsGrid">
+      <div class="statCard ing"><div class="stl">Total Ingresos</div><div class="stv pos" id="fTI">$0.00</div></div>
+      <div class="statCard egr"><div class="stl">Total Egresos</div><div class="stv neg" id="fTE">$0.00</div></div>
+      <div class="statCard sal"><div class="stl">Saldo General</div><div class="stv" id="fTS">$0.00</div></div>
+    </div>
+    <div class="reportBar"><span>Exportar:</span><button class="btnPDF" onclick="DEMO_MODE?reportFlujoPDF():reportFlujoConFirebase('pdf')">📄 PDF</button><button class="btnXLS" onclick="DEMO_MODE?reportFlujoXLS():reportFlujoConFirebase('xls')">📊 Excel</button></div>
+    <div id="fDet" class="flujoGrid"></div>`;
+  subFlujo();
+}
+function subFlujo(){
+  if(DEMO_MODE){const u=demoSub(d=>drawFlujo(d));listeners.push(u);return;}
+  const u=db.collection('movimientos').onSnapshot(s=>drawFlujo(s.docs.map(d=>({id:d.id,...d.data()}))));
+  listeners.push(u);
+}
+function drawFlujo(data){
+  let ti=0,te=0;
+  const byM={};
+  configData.metodos.forEach(m=>{byM[m.id]={nombre:m.nombre,tipo:m.tipo,ing:0,egr:0};});
+  data.forEach(m=>{
+    if(!byM[m.metodoPagoId]) byM[m.metodoPagoId]={nombre:m.metodoPago||m.metodoPagoId,tipo:'banco',ing:0,egr:0};
+    if(m.tipo==='ingreso'){byM[m.metodoPagoId].ing+=+m.importe||0;ti+=+m.importe||0;}
+    else{byM[m.metodoPagoId].egr+=+m.importe||0;te+=+m.importe||0;}
+  });
+  const sal=ti-te;
+  setText('fTI','$'+ti.toFixed(2));setText('fTE','$'+te.toFixed(2));
+  const ts=document.getElementById('fTS');
+  if(ts){ts.textContent=(sal>=0?'+':'')+'$'+sal.toFixed(2);ts.className='stv '+(sal>0?'pos':sal<0?'neg':'neu');}
+  const det=document.getElementById('fDet');if(!det)return;
+  det.innerHTML=Object.entries(byM).map(([,m])=>{
+    const s=m.ing-m.egr;
+    return`<div class="flujoCard">
+      <div class="flujoHead">
+        <div class="fn">${m.tipo==='efectivo'?'💵':'🏦'} ${m.nombre}</div>
+        <span class="fbadge ${m.tipo==='efectivo'?'ef':'ba'}">${m.tipo==='efectivo'?'Efectivo':'Banco'}</span>
+      </div>
+      <div class="flujoRow">
+        <div class="flujoCell"><div class="fcl">Ingresos</div><div class="fcv pos">+$${m.ing.toFixed(2)}</div></div>
+        <div class="flujoCell"><div class="fcl">Egresos</div><div class="fcv neg">-$${m.egr.toFixed(2)}</div></div>
+        <div class="flujoCell"><div class="fcl">Saldo</div><div class="fcv ${s>0?'pos':s<0?'neg':'neu'}">${s>=0?'+':''}$${s.toFixed(2)}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════
+   VISTA BAICAO
+══════════════════════════════════════════ */
+function renderBaicao(){
+  document.getElementById('main').innerHTML=`
+    <div class="pageHeader">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div><h2>Vista Baicao</h2><p>Egresos registrados por los operadores — márcalos al subirlos al sistema Baicao</p></div>
+        <button onclick="limpiarImagenes()" style="background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);
+          color:#fbbf24;border-radius:10px;padding:.55rem 1rem;font-size:.82rem;font-weight:600;
+          cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap">
+          🧹 Limpiar imágenes antiguas
+        </button>
+      </div>
+    </div>
+    <div class="reportBar"><span>Exportar:</span><button class="btnPDF" onclick="reportBaicaoPDF()">📄 PDF</button><button class="btnXLS" onclick="reportBaicaoXLS()">📊 Excel</button></div>
+    <div class="tableWrap">
+      <div class="tableTop">
+        <span class="tt">Egresos</span>
+        <div class="filters">
+          <select id="bEst" onchange="filterB()"><option value="">Todos</option><option value="false">Pendientes</option><option value="true">Enviados</option></select>
+          <select id="bMet" onchange="filterB()">
+            <option value="">Todos los métodos</option>
+            ${configData.metodos.map(m=>`<option value="${m.id}">${m.nombre}</option>`).join('')}
+          </select>
+          <input type="date" id="bD" onchange="filterB()" title="Desde">
+          <input type="date" id="bH" onchange="filterB()" title="Hasta">
+        </div>
+      </div>
+      <div class="tableScroll">
+        <table>
+          <thead><tr>
+            <th>Estado</th><th>Categoría</th><th>Fecha</th><th>Importe</th>
+            <th>Método</th><th>Responsable</th><th>Descripción</th>
+            <th>Comprobante</th><th>Acción</th>
+          </tr></thead>
+          <tbody id="bBody"><tr class="emptyRow"><td colspan="9">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>`;
+  subBaicao();
+}
+function subBaicao(){
+  if(DEMO_MODE){
+    const u=demoSub(d=>{baicaoData=d.filter(m=>m.tipo==='egreso');filterB();});
+    listeners.push(u);return;
+  }
+  const u=db.collection('movimientos').where('tipo','==','egreso').orderBy('creadoEn','desc')
+    .onSnapshot(s=>{baicaoData=s.docs.map(d=>({id:d.id,...d.data()}));filterB();});
+  listeners.push(u);
+}
+function filterB(){
+  const est=v('bEst'),met=v('bMet'),desde=v('bD'),hasta=v('bH');
+  let data=[...baicaoData];
+  if(est==='true') data=data.filter(m=>m.baicao===true);
+  else if(est==='false') data=data.filter(m=>!m.baicao);
+  if(met) data=data.filter(m=>m.metodoPagoId===met);
+  if(desde) data=data.filter(m=>m.fecha>=desde);
+  if(hasta) data=data.filter(m=>m.fecha<=hasta);
+  const tb=document.getElementById('bBody');if(!tb)return;
+  if(!data.length){tb.innerHTML=`<tr class="emptyRow"><td colspan="9">Sin egresos con ese filtro</td></tr>`;return;}
+  tb.innerHTML=data.map(m=>`<tr>
+    <td><span class="badge ${m.baicao?'ok':'pe'}">${m.baicao?'✓ Enviado':'⏳ Pendiente'}</span></td>
+    <td>${m.categoria||'—'}</td><td>${m.fecha||'—'}</td>
+    <td class="amt neg">−$${num(m.importe)}</td>
+    <td>${m.metodoPago||'—'}</td><td>${m.responsable||'—'}</td>
+    <td class="desc" title="${m.descripcion||''}">${m.descripcion||'—'}</td>
+    <td>${m.imagenURL?`<button class="iconBtn eye" onclick="openImg('${m.imagenURL}')">${svgEye()} Ver</button>`:'<span style="color:var(--mu);font-size:.78rem">—</span>'}</td>
+    <td>
+      ${!m.baicao
+        ?`<button class="iconBtn chk" onclick="marcar('${m.id}',true)" style="border:1px solid var(--grbo);border-radius:var(--r);padding:4px 9px">${svgOk()} Marcar</button>`
+        :`<button class="iconBtn undo" onclick="marcar('${m.id}',false)" style="border:1px solid var(--bo);border-radius:var(--r);padding:4px 9px">↩ Desmarcar</button>`}
+    </td>
+  </tr>`).join('');
+}
+function marcar(id,val){
+  if(DEMO_MODE){
+    const arr=DStore.mov();const m=arr.find(x=>x.id===id);
+    if(m){m.baicao=val;DStore.saveMov(arr);demoNotify();}
+    showToast(val?'Marcado como enviado ✓':'Desmarcado');return;
+  }
+  db.collection('movimientos').doc(id).update({baicao:val}).then(()=>showToast(val?'Marcado ✓':'Desmarcado'));
+}
+
+/* ══════════════════════════════════════════
+   CONFIGURACIÓN
+══════════════════════════════════════════ */
+function renderConfig(){
+  document.getElementById('main').innerHTML=`
+    <div class="pageHeader"><h2>Configuración</h2><p>Administra categorías y bancos del sistema</p></div>
+
+    <div class="configSection">
+      <div class="configHead">
+        <h3>📂 Categorías</h3>
+        <span style="font-size:.78rem;color:var(--mu)">${configData.categorias.length} total</span>
+      </div>
+      <div>
+        ${configData.categorias.length
+          ? configData.categorias.map(c=>`
+              <div class="configItem">
+                <div class="cn">${c.nombre}</div>
+                <button class="iconBtn del" onclick="delCategoria('${c.id}')">${svgDel()}</button>
+              </div>`).join('')
+          : '<div style="padding:.8rem 1rem;font-size:.85rem;color:var(--mu)">Sin categorías aún</div>'}
+      </div>
+      <div class="inlineForm">
+        <input type="text" id="nCat" placeholder="Nueva categoría..." onkeydown="if(event.key==='Enter'){addCategoria(this.value);this.value=''}">
+        <button onclick="addCategoria(document.getElementById('nCat').value);document.getElementById('nCat').value=''">+ Agregar</button>
+      </div>
+    </div>
+
+    <div class="configSection">
+      <div class="configHead">
+        <h3>🏦 Bancos / Métodos de pago</h3>
+        <span style="font-size:.78rem;color:var(--mu)">${configData.metodos.length} total</span>
+      </div>
+      <div>
+        ${configData.metodos.map(m=>`
+          <div class="configItem">
+            <div>
+              <div class="cn">${m.nombre}</div>
+              <div class="ct">${m.tipo==='efectivo'?'Efectivo':'Banco'}</div>
+            </div>
+            ${!['efectivo','banorte','santander'].includes(m.id)
+              ? `<button class="iconBtn del" onclick="delMetodo('${m.id}')">${svgDel()}</button>`
+              : '<span style="font-size:.7rem;color:var(--mu)">predeterminado</span>'}
+          </div>`).join('')}
+      </div>
+      <div class="inlineForm">
+        <input type="text" id="nMet" placeholder="Nuevo banco..." onkeydown="if(event.key==='Enter'){addMetodo(this.value);this.value=''}">
+        <button onclick="addMetodo(document.getElementById('nMet').value);document.getElementById('nMet').value=''">+ Agregar</button>
+      </div>
+    </div>
+
+    <div class="configSection">
+      <div class="configHead"><h3>👥 Usuarios</h3></div>
+      <div>
+        ${USERS.map(u=>`
+          <div class="configItem">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:32px;height:32px;border-radius:50%;background:${u.bg};color:${u.color};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem">${u.name[0]}</div>
+              <div>
+                <div class="cn">${u.name}</div>
+                <div class="ct">${u.role==='supervisor'?'Supervisor':'Operador'} · ${u.pass}</div>
+              </div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+/* ══════════════════════════════════════════
+   IMAGEN ZOOM
+══════════════════════════════════════════ */
+function openImg(url){
+  document.getElementById('imgModalSrc').src=url;
+  document.getElementById('imgModalOpen').href=url;
+  document.getElementById('imgModalDl').href=url;
+  document.getElementById('imgModal').classList.add('open');
+}
+function closeImg(){document.getElementById('imgModal').classList.remove('open');document.getElementById('imgModalSrc').src='';}
+document.getElementById('imgModal').addEventListener('click',function(e){if(e.target===this)closeImg();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeImg();});
+
+/* ══════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════ */
+function v(id){const el=document.getElementById(id);return el?el.value:'';}
+function setText(id,t){const el=document.getElementById(id);if(el)el.textContent=t;}
+function today(){return new Date().toISOString().slice(0,10);}
+function num(n){return(+n||0).toFixed(2);}
+function showToast(msg,type='ok'){
+  const t=document.getElementById('toast');
+  const el=document.createElement('div');
+  el.className=`toastItem ${type}`;el.textContent=msg;
+  t.appendChild(el);setTimeout(()=>el.remove(),3500);
+}
+function svgEye(){return`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`}
+function svgDel(){return`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>`}
+function svgOk(){return`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`}
+
+/* ══════════════════════════════════════════
+   UTILIDADES DE REPORTE
+══════════════════════════════════════════ */
+function rFecha(){
+  const d=v('hD')||v('bD'),h=v('hH')||v('bH');
+  if(d&&h) return `${d} al ${h}`;
+  if(d) return `Desde ${d}`;
+  if(h) return `Hasta ${h}`;
+  return 'Todos los períodos';
+}
+function getFilteredH(){
+  const tipo=v('hTipo'),met=v('hMet'),resp=v('hResp'),desde=v('hD'),hasta=v('hH');
+  let data=[...movimientosData];
+  if(tipo) data=data.filter(m=>m.tipo===tipo);
+  if(met) data=data.filter(m=>m.metodoPagoId===met);
+  if(resp) data=data.filter(m=>m.responsableId===resp);
+  if(desde) data=data.filter(m=>m.fecha>=desde);
+  if(hasta) data=data.filter(m=>m.fecha<=hasta);
+  return data;
+}
+function getFilteredB(){
+  const est=v('bEst'),met=v('bMet'),desde=v('bD'),hasta=v('bH');
+  let data=[...baicaoData];
+  if(est==='true') data=data.filter(m=>m.baicao===true);
+  else if(est==='false') data=data.filter(m=>!m.baicao);
+  if(met) data=data.filter(m=>m.metodoPagoId===met);
+  if(desde) data=data.filter(m=>m.fecha>=desde);
+  if(hasta) data=data.filter(m=>m.fecha<=hasta);
+  return data;
+}
+function getFlujoData(){
+  const src=DEMO_MODE?DStore.mov():null;
+  return src;
+}
+function newPDF(titulo,periodo){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  doc.setFillColor(9,12,22);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(16);doc.setTextColor(245,164,40);
+  doc.text('FlujoCaja Pro',14,14);
+  doc.setFontSize(11);doc.setTextColor(221,227,242);
+  doc.text(titulo,14,22);
+  doc.setFontSize(9);doc.setTextColor(102,115,143);
+  doc.text('Período: '+periodo,14,29);
+  doc.text('Generado: '+new Date().toLocaleString('es-MX'),14,34);
+  return doc;
+}
+
+/* ── HISTORIAL PDF ── */
+function reportHistorialPDF(){
+  if(!DEMO_MODE&&db&&movimientosData.length===0){showToast('Cargando datos...','warn');return;}
+  const data=getFilteredH();
+  if(!data.length){showToast('Sin datos para exportar','err');return;}
+  const doc=newPDF('Todos los Registros — Ingresos y Egresos',rFecha());
+  let ti=0,te=0;
+  const rows=data.map(m=>{
+    const imp=+m.importe||0;
+    if(m.tipo==='ingreso') ti+=imp; else te+=imp;
+    return[
+      m.tipo==='ingreso'?'↑ Ingreso':'↓ Egreso',
+      m.categoria||'—', m.fecha||'—',
+      (m.tipo==='ingreso'?'+':'-')+'$'+imp.toFixed(2),
+      m.metodoPago||'—', m.responsable||'—',
+      (m.descripcion||'—').slice(0,40),
+      m.imagenURL?'✓ Con comprobante':'—'
+    ];
+  });
+  doc.autoTable({
+    startY:40,
+    head:[['Tipo','Categoría','Fecha','Importe','Método','Responsable','Descripción','Comprobante']],
+    body:rows,
+    styles:{fontSize:8,cellPadding:3,textColor:[221,227,242],fillColor:[15,20,34]},
+    headStyles:{fillColor:[21,28,47],textColor:[102,115,143],fontStyle:'bold'},
+    alternateRowStyles:{fillColor:[21,28,47]},
+    foot:[[{content:`Total Ingresos: +$${ti.toFixed(2)}   Total Egresos: -$${te.toFixed(2)}   Saldo: ${(ti-te)>=0?'+':''}$${(ti-te).toFixed(2)}`,colSpan:8,styles:{fontStyle:'bold',textColor:[245,164,40],fillColor:[9,12,22]}}]],
+    footStyles:{fillColor:[9,12,22]},
+  });
+  doc.save('FlujoCaja_Registros_'+today()+'.pdf');
+  showToast('PDF descargado ✓');
+}
+
+/* ── HISTORIAL EXCEL ── */
+function reportHistorialXLS(){
+  const data=getFilteredH();
+  if(!data.length){showToast('Sin datos para exportar','err');return;}
+  const wb=XLSX.utils.book_new();
+  const wsData=[
+    ['FlujoCaja Pro — Todos los Registros'],
+    ['Período: '+rFecha()],
+    ['Generado: '+new Date().toLocaleString('es-MX')],
+    [],
+    ['Tipo','Categoría','Fecha','Importe','Método de pago','Responsable','Descripción','Comprobante'],
+  ];
+  let ti=0,te=0;
+  data.forEach(m=>{
+    const imp=+m.importe||0;
+    if(m.tipo==='ingreso') ti+=imp; else te+=imp;
+    wsData.push([
+      m.tipo==='ingreso'?'Ingreso':'Egreso',
+      m.categoria||'', m.fecha||'',
+      (m.tipo==='ingreso'?1:-1)*imp,
+      m.metodoPago||'', m.responsable||'',
+      m.descripcion||'',
+      m.imagenURL?{t:'s',v:'Ver comprobante',l:{Target:m.imagenURL}}:'Sin comprobante'
+    ]);
+  });
+  wsData.push([]);
+  wsData.push(['','','','Total Ingresos:',ti,'','','']);
+  wsData.push(['','','','Total Egresos:',-te,'','','']);
+  wsData.push(['','','','Saldo:',(ti-te),'','','']);
+  const ws=XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols']=[{wch:12},{wch:18},{wch:12},{wch:14},{wch:14},{wch:18},{wch:30},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,ws,'Registros');
+  XLSX.writeFile(wb,'FlujoCaja_Registros_'+today()+'.xlsx');
+  showToast('Excel descargado ✓');
+}
+
+/* ── BAICAO PDF ── */
+function reportBaicaoPDF(){
+  const data=getFilteredB();
+  if(!data.length){showToast('Sin datos para exportar','err');return;}
+  const doc=newPDF('Vista Baicao — Egresos',rFecha());
+  let total=0;
+  const rows=data.map(m=>{
+    const imp=+m.importe||0; total+=imp;
+    return[
+      m.baicao?'✓ Enviado':'⏳ Pendiente',
+      m.categoria||'—', m.fecha||'—',
+      '-$'+imp.toFixed(2),
+      m.metodoPago||'—', m.responsable||'—',
+      (m.descripcion||'—').slice(0,40),
+      m.imagenURL?'✓ Con comprobante':'—'
+    ];
+  });
+  doc.autoTable({
+    startY:40,
+    head:[['Estado','Categoría','Fecha','Importe','Método','Responsable','Descripción','Comprobante']],
+    body:rows,
+    styles:{fontSize:8,cellPadding:3,textColor:[221,227,242],fillColor:[15,20,34]},
+    headStyles:{fillColor:[21,28,47],textColor:[102,115,143],fontStyle:'bold'},
+    alternateRowStyles:{fillColor:[21,28,47]},
+    foot:[[{content:`Total Egresos: $${total.toFixed(2)}   |   Registros: ${data.length}   |   Enviados: ${data.filter(m=>m.baicao).length}   Pendientes: ${data.filter(m=>!m.baicao).length}`,colSpan:8,styles:{fontStyle:'bold',textColor:[245,164,40],fillColor:[9,12,22]}}]],
+  });
+  doc.save('FlujoCaja_Baicao_'+today()+'.pdf');
+  showToast('PDF descargado ✓');
+}
+
+/* ── BAICAO EXCEL ── */
+function reportBaicaoXLS(){
+  const data=getFilteredB();
+  if(!data.length){showToast('Sin datos para exportar','err');return;}
+  const wb=XLSX.utils.book_new();
+  const wsData=[
+    ['FlujoCaja Pro — Vista Baicao'],
+    ['Período: '+rFecha()],
+    ['Generado: '+new Date().toLocaleString('es-MX')],
+    [],
+    ['Estado','Categoría','Fecha','Importe','Método de pago','Responsable','Descripción','Comprobante'],
+  ];
+  let total=0;
+  data.forEach(m=>{
+    const imp=+m.importe||0; total+=imp;
+    wsData.push([
+      m.baicao?'Enviado':'Pendiente',
+      m.categoria||'', m.fecha||'',
+      -imp, m.metodoPago||'', m.responsable||'',
+      m.descripcion||'',
+      m.imagenURL?{t:'s',v:'Ver comprobante',l:{Target:m.imagenURL}}:'Sin comprobante'
+    ]);
+  });
+  wsData.push([]);
+  wsData.push(['Total egresos:','','',total,'','','','']);
+  wsData.push(['Enviados al Baicao:','','',data.filter(m=>m.baicao).length,'','','','']);
+  wsData.push(['Pendientes:','','',data.filter(m=>!m.baicao).length,'','','','']);
+  const ws=XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols']=[{wch:14},{wch:18},{wch:12},{wch:14},{wch:14},{wch:18},{wch:30},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,ws,'Baicao');
+  XLSX.writeFile(wb,'FlujoCaja_Baicao_'+today()+'.xlsx');
+  showToast('Excel descargado ✓');
+}
+
+/* ── FLUJO PDF ── */
+function reportFlujoPDF(){
+  const src=DEMO_MODE?DStore.mov():null;
+  if(DEMO_MODE&&!src){showToast('Sin datos','err');return;}
+  const doc=newPDF('Flujo de Caja — Resumen por Método de Pago','Todos los períodos');
+  let ti=0,te=0;
+  const byM={};
+  configData.metodos.forEach(m=>{byM[m.id]={nombre:m.nombre,tipo:m.tipo,ing:0,egr:0};});
+  const movs=DEMO_MODE?DStore.mov():[];
+  movs.forEach(m=>{
+    if(!byM[m.metodoPagoId]) byM[m.metodoPagoId]={nombre:m.metodoPago||m.metodoPagoId,tipo:'banco',ing:0,egr:0};
+    if(m.tipo==='ingreso'){byM[m.metodoPagoId].ing+=+m.importe||0;ti+=+m.importe||0;}
+    else{byM[m.metodoPagoId].egr+=+m.importe||0;te+=+m.importe||0;}
+  });
+  const rows=Object.values(byM).map(m=>{
+    const s=m.ing-m.egr;
+    return[m.nombre,m.tipo==='efectivo'?'Efectivo':'Banco','+$'+m.ing.toFixed(2),'-$'+m.egr.toFixed(2),(s>=0?'+':'')+'$'+s.toFixed(2)];
+  });
+  doc.autoTable({
+    startY:40,
+    head:[['Método / Banco','Tipo','Ingresos','Egresos','Saldo']],
+    body:rows,
+    styles:{fontSize:9,cellPadding:4,textColor:[221,227,242],fillColor:[15,20,34]},
+    headStyles:{fillColor:[21,28,47],textColor:[102,115,143],fontStyle:'bold'},
+    alternateRowStyles:{fillColor:[21,28,47]},
+    foot:[[{content:`TOTALES`,styles:{fontStyle:'bold',textColor:[245,164,40]}},
+           {content:''},
+           {content:'+$'+ti.toFixed(2),styles:{textColor:[34,197,94],fontStyle:'bold'}},
+           {content:'-$'+te.toFixed(2),styles:{textColor:[248,113,113],fontStyle:'bold'}},
+           {content:(ti-te>=0?'+':'')+'$'+(ti-te).toFixed(2),styles:{textColor:[245,164,40],fontStyle:'bold'}}]],
+  });
+  doc.save('FlujoCaja_Resumen_'+today()+'.pdf');
+  showToast('PDF descargado ✓');
+}
+
+/* ── FLUJO EXCEL ── */
+function reportFlujoXLS(){
+  const movs=DEMO_MODE?DStore.mov():[];
+  const wb=XLSX.utils.book_new();
+  let ti=0,te=0;
+  const byM={};
+  configData.metodos.forEach(m=>{byM[m.id]={nombre:m.nombre,tipo:m.tipo,ing:0,egr:0};});
+  movs.forEach(m=>{
+    if(!byM[m.metodoPagoId]) byM[m.metodoPagoId]={nombre:m.metodoPago||m.metodoPagoId,tipo:'banco',ing:0,egr:0};
+    if(m.tipo==='ingreso'){byM[m.metodoPagoId].ing+=+m.importe||0;ti+=+m.importe||0;}
+    else{byM[m.metodoPagoId].egr+=+m.importe||0;te+=+m.importe||0;}
+  });
+  const wsData=[
+    ['FlujoCaja Pro — Flujo de Caja'],
+    ['Generado: '+new Date().toLocaleString('es-MX')],
+    [],
+    ['Método / Banco','Tipo','Ingresos','Egresos','Saldo'],
+  ];
+  Object.values(byM).forEach(m=>{
+    wsData.push([m.nombre,m.tipo==='efectivo'?'Efectivo':'Banco',m.ing,-m.egr,m.ing-m.egr]);
+  });
+  wsData.push([]);
+  wsData.push(['TOTALES','',ti,-te,ti-te]);
+  const ws=XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols']=[{wch:18},{wch:12},{wch:14},{wch:14},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,ws,'Flujo de Caja');
+
+  // Hoja 2: detalle completo
+  const ws2Data=[
+    ['Tipo','Categoría','Fecha','Importe','Método','Responsable','Descripción','Comprobante'],
+  ];
+  movs.forEach(m=>{
+    ws2Data.push([
+      m.tipo==='ingreso'?'Ingreso':'Egreso',
+      m.categoria||'',m.fecha||'',(m.tipo==='ingreso'?1:-1)*(+m.importe||0),
+      m.metodoPago||'',m.responsable||'',m.descripcion||'',
+      m.imagenURL?{t:'s',v:'Ver comprobante',l:{Target:m.imagenURL}}:'Sin comprobante'
+    ]);
+  });
+  const ws2=XLSX.utils.aoa_to_sheet(ws2Data);
+  ws2['!cols']=[{wch:12},{wch:18},{wch:12},{wch:14},{wch:14},{wch:18},{wch:30},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Detalle movimientos');
+
+  XLSX.writeFile(wb,'FlujoCaja_Resumen_'+today()+'.xlsx');
+  showToast('Excel descargado ✓');
+}
+
+/* ── FLUJO FIREBASE (para reporte cuando no es demo) ── */
+function reportFlujoConFirebase(tipo){
+  if(!DEMO_MODE&&db){
+    db.collection('movimientos').get().then(snap=>{
+      const movs=snap.docs.map(d=>({id:d.id,...d.data()}));
+      _generarFlujoReporte(movs,tipo);
+    });
+  } else {
+    if(tipo==='pdf') reportFlujoPDF();
+    else reportFlujoXLS();
+  }
+}
+function _generarFlujoReporte(movs,tipo){
+  const byM={};let ti=0,te=0;
+  configData.metodos.forEach(m=>{byM[m.id]={nombre:m.nombre,tipo:m.tipo,ing:0,egr:0};});
+  movs.forEach(m=>{
+    if(!byM[m.metodoPagoId]) byM[m.metodoPagoId]={nombre:m.metodoPago||m.metodoPagoId,tipo:'banco',ing:0,egr:0};
+    if(m.tipo==='ingreso'){byM[m.metodoPagoId].ing+=+m.importe||0;ti+=+m.importe||0;}
+    else{byM[m.metodoPagoId].egr+=+m.importe||0;te+=+m.importe||0;}
+  });
+  if(tipo==='pdf'){
+    const doc=newPDF('Flujo de Caja — Resumen por Método de Pago','Todos los períodos');
+    const rows=Object.values(byM).map(m=>{const s=m.ing-m.egr;return[m.nombre,m.tipo==='efectivo'?'Efectivo':'Banco','+$'+m.ing.toFixed(2),'-$'+m.egr.toFixed(2),(s>=0?'+':'')+'$'+s.toFixed(2)];});
+    doc.autoTable({startY:40,head:[['Método / Banco','Tipo','Ingresos','Egresos','Saldo']],body:rows,styles:{fontSize:9,cellPadding:4,textColor:[221,227,242],fillColor:[15,20,34]},headStyles:{fillColor:[21,28,47],textColor:[102,115,143],fontStyle:'bold'},alternateRowStyles:{fillColor:[21,28,47]}});
+    doc.save('FlujoCaja_Resumen_'+today()+'.pdf');
+  } else {
+    const wb=XLSX.utils.book_new();
+    const wsData=[['FlujoCaja Pro — Flujo de Caja'],['Generado: '+new Date().toLocaleString('es-MX')],[],['Método','Tipo','Ingresos','Egresos','Saldo']];
+    Object.values(byM).forEach(m=>wsData.push([m.nombre,m.tipo==='efectivo'?'Efectivo':'Banco',m.ing,-m.egr,m.ing-m.egr]));
+    wsData.push([]);wsData.push(['TOTALES','',ti,-te,ti-te]);
+    const ws=XLSX.utils.aoa_to_sheet(wsData);ws['!cols']=[{wch:18},{wch:12},{wch:14},{wch:14},{wch:14}];
+    XLSX.utils.book_append_sheet(wb,ws,'Flujo de Caja');
+    XLSX.writeFile(wb,'FlujoCaja_Resumen_'+today()+'.xlsx');
+  }
+  showToast(tipo==='pdf'?'PDF descargado ✓':'Excel descargado ✓');
+}
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+window.addEventListener('load',()=>{
+  initFirebase();
+  renderLogin();
+  registerSW();
+});
+
+/* ══ PWA SERVICE WORKER ══ */
+function registerSW(){
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js')
+      .then(()=>console.log('SW registrado'))
+      .catch(e=>console.log('SW error:',e));
+  }
+  // Banner de instalación
+  let deferredPrompt=null;
+  window.addEventListener('beforeinstallprompt',e=>{
+    e.preventDefault();deferredPrompt=e;
+    showInstallBanner();
+  });
+  window.addEventListener('appinstalled',()=>{
+    hideInstallBanner();deferredPrompt=null;
+  });
+}
+function showInstallBanner(){
+  if(document.getElementById('installBanner')) return;
+  const b=document.createElement('div');
+  b.id='installBanner';
+  b.style.cssText='position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);'+
+    'background:#0f1422;border:1px solid rgba(245,164,40,.4);border-radius:12px;'+
+    'padding:.8rem 1.2rem;display:flex;align-items:center;gap:12px;z-index:998;'+
+    'box-shadow:0 8px 32px rgba(0,0,0,.6);max-width:340px;width:90%';
+  b.innerHTML='<span style="font-size:1.4rem">📱</span>'+
+    '<div style="flex:1"><div style="font-size:.85rem;font-weight:600">Instalar FlujoCaja Pro</div>'+
+    '<div style="font-size:.75rem;color:#66738f">Agregar a tu pantalla de inicio</div></div>'+
+    '<button onclick="doInstall()" style="background:#f5a428;color:#000;border:none;border-radius:8px;'+
+    'padding:.45rem .9rem;font-weight:700;font-size:.8rem;cursor:pointer">Instalar</button>'+
+    '<button onclick="hideInstallBanner()" style="background:none;border:none;color:#66738f;'+
+    'cursor:pointer;font-size:1.1rem;padding:0 4px">✕</button>';
+  document.body.appendChild(b);
+}
+function hideInstallBanner(){
+  const b=document.getElementById('installBanner');if(b)b.remove();
+}
+function doInstall(){
+  if(!window._deferredPrompt)return;
+  window._deferredPrompt.prompt();
+  window._deferredPrompt.userChoice.then(()=>{window._deferredPrompt=null;hideInstallBanner();});
+}
+window.addEventListener('beforeinstallprompt',e=>{window._deferredPrompt=e;});
+</script>
+</body>
+</html>
