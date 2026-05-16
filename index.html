@@ -307,6 +307,21 @@ const FIREBASE_CONFIG = {
 
 <!-- IMG MODAL -->
 <div id="imgModal">
+
+<!-- EDIT MODAL -->
+<div id="editModal" style="position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;display:none;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)">
+  <div style="background:var(--surf);border:1px solid var(--bo2);border-radius:var(--rx);width:100%;max-width:540px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.4rem;border-bottom:1px solid var(--bo);position:sticky;top:0;background:var(--surf);z-index:5">
+      <span style="font-weight:700;font-size:1rem">✏️ Editar registro</span>
+      <button onclick="closeEdit()" style="background:none;border:none;color:var(--mu);font-size:1.2rem;cursor:pointer">✕</button>
+    </div>
+    <div class="mbody" style="padding:1.4rem"></div>
+    <div style="padding:1rem 1.4rem;border-top:1px solid var(--bo);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:var(--surf)">
+      <button class="btnSec" onclick="closeEdit()">Cancelar</button>
+      <button class="btnAcc" id="btnSaveEdit" onclick="saveEdit()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
   <img id="imgModalSrc" src="" alt="Comprobante">
   <div class="imgBtns">
     <a id="imgModalOpen" href="" target="_blank">↗ Abrir en nueva pestaña</a>
@@ -549,11 +564,11 @@ function renderForm(tipo){
       </div>
       <div class="frow">
         <label>Comprobante (imagen)</label>
-        <div class="uploadArea" onclick="document.getElementById('fFile').click()">
+        <label for="fFile" class="uploadArea" style="display:block;cursor:pointer">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
           <p>Clic o arrastra la imagen aquí</p>
-          <input type="file" id="fFile" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="previewFn(this)">
-        </div>
+        </label>
+        <input type="file" id="fFile" accept="image/*" style="display:none" onchange="previewFn(this)">
         <div id="prevWrap"></div>
       </div>
       <div class="formBtns">
@@ -683,7 +698,7 @@ function renderHistorial(){
           <thead><tr>
             <th>Tipo</th><th>Categoría</th><th>Fecha</th><th>Importe</th>
             <th>Método</th><th>Responsable</th><th>Descripción</th>
-            <th>Comprobante</th>${isSup?'<th></th>':''}
+            <th>Comprobante</th><th>Acciones</th>
           </tr></thead>
           <tbody id="hBody"><tr class="emptyRow"><td colspan="9">Cargando...</td></tr></tbody>
         </table>
@@ -714,21 +729,132 @@ function filterH(){
   if(desde) data=data.filter(m=>m.fecha>=desde);
   if(hasta) data=data.filter(m=>m.fecha<=hasta);
   const tb=document.getElementById('hBody');if(!tb)return;
-  if(!data.length){tb.innerHTML=`<tr class="emptyRow"><td colspan="${isSup?9:8}">Sin registros</td></tr>`;return;}
-  tb.innerHTML=data.map(m=>`<tr>
+  if(!data.length){tb.innerHTML=`<tr class="emptyRow"><td colspan="9">Sin registros</td></tr>`;return;}
+  tb.innerHTML=data.map(m=>{
+    const canEdit=currentUser.role==='supervisor'||m.responsableId===currentUser.id;
+    return `<tr>
     <td><span class="badge ${m.tipo==='ingreso'?'ing':'egr'}">${m.tipo==='ingreso'?'↑ Ingreso':'↓ Egreso'}</span></td>
     <td>${m.categoria||'—'}</td><td>${m.fecha||'—'}</td>
     <td class="amt ${m.tipo==='ingreso'?'pos':'neg'}">${m.tipo==='ingreso'?'+':'−'}$${num(m.importe)}</td>
     <td>${m.metodoPago||'—'}</td><td>${m.responsable||'—'}</td>
     <td class="desc" title="${m.descripcion||''}">${m.descripcion||'—'}</td>
-    <td>${m.imagenURL?`<button class="iconBtn eye" onclick="openImg('${m.imagenURL}')">${svgEye()} Ver</button>`:'<span style="color:var(--mu);font-size:.78rem">—</span>'}</td>
-    ${isSup?`<td><button class="iconBtn del" onclick="delMov('${m.id}')">${svgDel()}</button></td>`:''}
-  </tr>`).join('');
+    <td>
+      ${m.imagenURL
+        ?`<button class="iconBtn eye" onclick="openImg('${m.imagenURL}')">${svgEye()} Ver</button>`
+        :'<span style="color:var(--mu);font-size:.78rem">Sin imagen</span>'}
+      ${canEdit?`<label for="replFile_${m.id}" class="iconBtn" style="color:var(--am);cursor:pointer" title="Subir/reemplazar imagen">
+        📎<input type="file" id="replFile_${m.id}" accept="image/*" style="display:none" onchange="replaceImg('${m.id}',this)">
+      </label>`:''}
+    </td>
+    <td style="white-space:nowrap">
+      ${canEdit?`<button class="iconBtn" style="color:var(--bl)" onclick="openEdit('${m.id}')" title="Editar">${svgEdit()}</button>
+      <button class="iconBtn del" onclick="delMov('${m.id}')" title="Eliminar">${svgDel()}</button>`:'—'}
+    </td>
+  </tr>`;
+  }).join('');
 }
 function delMov(id){
   if(!confirm('¿Eliminar este registro?'))return;
   if(DEMO_MODE){const arr=DStore.mov().filter(m=>m.id!==id);DStore.saveMov(arr);demoNotify();showToast('Eliminado');return;}
   db.collection('movimientos').doc(id).delete().then(()=>showToast('Eliminado'));
+}
+
+/* ══════════════════════════════════════════
+   EDITAR REGISTRO
+══════════════════════════════════════════ */
+let editingId=null;
+let editFile=null;
+function openEdit(id){
+  const m=[...movimientosData,...baicaoData].find(x=>x.id===id);
+  if(!m)return;
+  editingId=id; editFile=null;
+  const catOpts=configData.categorias.map(c=>`<option value="${c.nombre}"${c.nombre===m.categoria?' selected':''}>${c.nombre}</option>`).join('');
+  const metOpts=configData.metodos.map(mt=>`<option value="${mt.id}"${mt.id===m.metodoPagoId?' selected':''}>${mt.nombre}</option>`).join('');
+  const modal=document.getElementById('editModal');
+  modal.querySelector('.mbody').innerHTML=`
+    <div class="fgrid2">
+      <div class="frow"><label>Categoría</label>
+        <select id="eCat"><option value="">Seleccionar...</option>${catOpts}</select></div>
+      <div class="frow"><label>Fecha</label>
+        <input type="date" id="eFecha" value="${m.fecha||''}"></div>
+      <div class="frow"><label>Importe</label>
+        <input type="number" id="eImporte" value="${m.importe||''}" min="0" step="0.01"></div>
+      <div class="frow"><label>Método de pago</label>
+        <select id="eMetodo"><option value="">Seleccionar...</option>${metOpts}</select></div>
+    </div>
+    <div class="frow"><label>Descripción</label>
+      <textarea id="eDesc">${m.descripcion||''}</textarea></div>
+    <div class="frow"><label>Comprobante actual</label>
+      <div id="eImgActual" style="margin-bottom:8px">
+        ${m.imagenURL
+          ?`<img src="${m.imagenURL}" style="max-height:120px;border-radius:var(--r);border:1px solid var(--bo)">`
+          :'<span style="color:var(--mu);font-size:.85rem">Sin imagen</span>'}
+      </div>
+      <label for="eFile" class="uploadArea" style="display:block;cursor:pointer;padding:.9rem">
+        <p style="font-size:.82rem">📎 ${m.imagenURL?'Reemplazar imagen':'Subir imagen'}</p>
+        <input type="file" id="eFile" accept="image/*" style="display:none" onchange="editPreviewFn(this)">
+      </label>
+      <div id="eImgNew"></div>
+    </div>`;
+  modal.style.display='flex';
+}
+function editPreviewFn(input){
+  editFile=input.files[0];if(!editFile)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    document.getElementById('eImgNew').innerHTML=
+      `<div style="margin-top:8px"><img src="${e.target.result}" style="max-height:120px;border-radius:var(--r);border:1px solid var(--grbo)">
+      <span style="font-size:.75rem;color:var(--gr);margin-left:8px">Nueva imagen lista</span></div>`;
+  };
+  r.readAsDataURL(editFile);
+}
+async function saveEdit(){
+  if(!editingId)return;
+  const cat=v('eCat'),fecha=v('eFecha'),importe=parseFloat(v('eImporte')),metodo=v('eMetodo'),desc=v('eDesc');
+  if(!cat||!fecha||!importe||!metodo){showToast('Completa todos los campos','err');return;}
+  const btn=document.getElementById('btnSaveEdit');
+  btn.disabled=true;btn.textContent='Guardando...';
+  const met=configData.metodos.find(m=>m.id===metodo);
+  let imagenURL=null;
+  if(editFile){
+    showToast('Comprimiendo imagen...','ok');
+    const compressed=await compressImage(editFile);
+    imagenURL=await fileToB64(compressed);
+  }
+  const update={categoria:cat,fecha,importe,metodoPagoId:metodo,metodoPago:met?met.nombre:metodo,descripcion:desc};
+  if(imagenURL!==null) update.imagenURL=imagenURL;
+  if(DEMO_MODE){
+    const arr=DStore.mov();
+    const idx=arr.findIndex(x=>x.id===editingId);
+    if(idx>=0) arr[idx]={...arr[idx],...update};
+    DStore.saveMov(arr);demoNotify();
+  } else {
+    await db.collection('movimientos').doc(editingId).update(update);
+  }
+  showToast('Registro actualizado ✓');
+  closeEdit();
+  btn.disabled=false;btn.textContent='Guardar cambios';
+}
+function closeEdit(){
+  document.getElementById('editModal').style.display='none';
+  editingId=null;editFile=null;
+}
+
+/* Reemplazar imagen directo desde la tabla */
+async function replaceImg(id,input){
+  const file=input.files[0];if(!file)return;
+  showToast('Comprimiendo y subiendo...','ok');
+  const compressed=await compressImage(file);
+  const imagenURL=await fileToB64(compressed);
+  if(DEMO_MODE){
+    const arr=DStore.mov();
+    const m=arr.find(x=>x.id===id);
+    if(m){m.imagenURL=imagenURL;DStore.saveMov(arr);demoNotify();}
+  } else {
+    await db.collection('movimientos').doc(id).update({imagenURL});
+  }
+  showToast('Imagen actualizada ✓');
+  input.value='';
 }
 
 /* ══════════════════════════════════════════
@@ -958,6 +1084,7 @@ function showToast(msg,type='ok'){
   el.className=`toastItem ${type}`;el.textContent=msg;
   t.appendChild(el);setTimeout(()=>el.remove(),3500);
 }
+function svgEdit(){return`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`}
 function svgEye(){return`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`}
 function svgDel(){return`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>`}
 function svgOk(){return`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`}
