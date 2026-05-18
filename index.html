@@ -313,9 +313,16 @@ const FIREBASE_CONFIG = {
 </div>
 
 <!-- IMG MODAL -->
-<div id="imgModal">
+<div id="imgModal" style="position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:1rem">
+  <img id="imgModalSrc" src="" alt="Comprobante" style="max-width:92vw;max-height:78vh;border-radius:10px;object-fit:contain">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+    <a id="imgModalOpen" href="" target="_blank" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:.5rem 1rem;font-size:.82rem;color:#dde3f2;text-decoration:none">↗ Abrir en nueva pestaña</a>
+    <a id="imgModalDl" href="" download="comprobante.jpg" target="_blank" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:.5rem 1rem;font-size:.82rem;color:#dde3f2;text-decoration:none">⬇ Descargar</a>
+    <button onclick="closeImg()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:.5rem 1rem;font-size:.82rem;color:#dde3f2;cursor:pointer;font-family:inherit">✕ Cerrar</button>
+  </div>
+</div>
 
-<!-- PASS MODAL -->
+<!--PASS MODAL -->
 <div id="passModal" style="position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:400;display:none;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)">
   <div style="background:var(--surf);border:1px solid var(--bo2);border-radius:var(--rx);width:100%;max-width:400px">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.4rem;border-bottom:1px solid var(--bo)">
@@ -1383,8 +1390,8 @@ function newPDF(titulo,periodo,resumen){
 }
 
 /* ── HISTORIAL PDF ── */
-function pdfTable(doc,head,rows,footText){
-  const startY=doc._nextY||50;
+function pdfTable(doc,head,rows,footText,startY){
+  startY=startY||doc._nextY||50;
   doc.autoTable({
     startY:startY,
     head:[head],
@@ -1543,40 +1550,47 @@ function reportBaicaoPDF(){
 
 function reportBaicaoXLS(){
   const data=getFilteredB();
-  if(!data.length){showToast('Sin datos para exportar','err');return;}
+  if(!data.length){showToast('Sin datos','err');return;}
   const wb=XLSX.utils.book_new();
-  const wsData=[
-    ['FlujoCaja Pro — Vista Baicao'],
-    ['Período: '+rFecha()],
-    ['Generado: '+new Date().toLocaleString('es-MX')],
-    [],
-    ['Estado','Categoría','Fecha','Importe','Método de pago','Responsable','Descripción','Comprobante'],
-  ];
   let total=0;
-  data.forEach(m=>{
+  const wsData=[
+    ['FLUJOCAJA PRO — VISTA BAICAO','','','','','','',''],
+    ['Período: '+rFecha(),'','','','','','',''],
+    ['Generado: '+new Date().toLocaleString('es-MX'),'','','','','','',''],
+    ['','','','','','','',''],
+    ['ESTADO','CATEGORÍA','FECHA','IMPORTE','MÉTODO DE PAGO','RESPONSABLE','DESCRIPCIÓN','COMPROBANTE'],
+  ];
+  data.forEach(function(m){
     const imp=+m.importe||0; total+=imp;
     var imgCell='Sin comprobante';
     if(m.imagenURL){
-      if(m.imagenURL.startsWith('http')){imgCell={t:'s',v:'Ver comprobante',l:{Target:m.imagenURL}};}
-      else{imgCell='Con imagen (base64)';}
+      imgCell=m.imagenURL.startsWith('http')?{t:'s',v:'Ver comprobante',l:{Target:m.imagenURL}}:'Con imagen';
     }
     wsData.push([
-      m.baicao?'Enviado':'Pendiente',
+      m.baicao?'✓ Enviado':'⏳ Pendiente',
       m.categoria||'', m.fecha||'',
       -imp, m.metodoPago||'', m.responsable||'',
       m.descripcion||'', imgCell
     ]);
   });
-  wsData.push([]);
+  wsData.push(['','','','','','','','']);
+  wsData.push(['RESUMEN','','','','','','','']);
   wsData.push(['Total egresos:','','',total,'','','','']);
-  wsData.push(['Enviados al Baicao:','','',data.filter(m=>m.baicao).length,'','','','']);
-  wsData.push(['Pendientes:','','',data.filter(m=>!m.baicao).length,'','','','']);
+  wsData.push(['Enviados al Baicao:','','',data.filter(function(m){return m.baicao;}).length,'','','','']);
+  wsData.push(['Pendientes:','','',data.filter(function(m){return !m.baicao;}).length,'','','','']);
+
   const ws=XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols']=[{wch:14},{wch:18},{wch:12},{wch:14},{wch:14},{wch:18},{wch:30},{wch:20}];
-  XLSX.utils.book_append_sheet(wb,ws,'Baicao');
+  ws['!cols']=[{wch:14},{wch:20},{wch:12},{wch:14},{wch:16},{wch:20},{wch:35},{wch:22}];
+  ws['!merges']=[
+    {s:{r:0,c:0},e:{r:0,c:7}},
+    {s:{r:1,c:0},e:{r:1,c:7}},
+    {s:{r:2,c:0},e:{r:2,c:7}},
+  ];
+  XLSX.utils.book_append_sheet(wb,ws,'Vista Baicao');
   XLSX.writeFile(wb,'FlujoCaja_Baicao_'+today()+'.xlsx');
-  showToast('Excel descargado ✓');
+  showToast('📊 Excel descargado ✓');
 }
+
 
 /* ── FLUJO PDF ── */
 function reportFlujoPDF(){
