@@ -508,25 +508,40 @@ async function savePass(){
 
 function loadConfig(cb){
   if(DEMO_MODE){
-    const s=DStore.cfg();
+    var s=DStore.cfg();
     if(s){configData.categorias=s.categorias||[];configData.metodos=s.metodos||configData.metodos;}
     cb&&cb();return;
   }
-  db.collection('config').doc('data').get().then(doc=>{
-    if(doc.exists){const d=doc.data();configData.categorias=d.categorias||[];configData.metodos=d.metodos||configData.metodos;}
-    else saveConfig();
-    cb&&cb();
-  }).catch(()=>cb&&cb());
+  if(!db){cb&&cb();return;}
+  db.collection('config').doc('data').get()
+    .then(function(doc){
+      if(doc.exists){
+        var d=doc.data();
+        if(d.categorias&&d.categorias.length) configData.categorias=d.categorias;
+        if(d.metodos&&d.metodos.length) configData.metodos=d.metodos;
+      } else {
+        saveConfig();
+      }
+      cb&&cb();
+    })
+    .catch(function(e){console.error('loadConfig error:',e);cb&&cb();});
 }
 function saveConfig(){
   if(DEMO_MODE){DStore.saveCfg(configData);return;}
-  if(db) db.collection('config').doc('data').set(configData);
+  if(!db){showToast('Sin conexión a Firebase','err');return;}
+  var dataToSave={
+    categorias: configData.categorias.map(function(c){return{id:String(c.id),nombre:String(c.nombre)}}),
+    metodos: configData.metodos.map(function(m){return{id:String(m.id),nombre:String(m.nombre),tipo:String(m.tipo)}})
+  };
+  db.collection('config').doc('data').set(dataToSave)
+    .then(function(){console.log('Config guardada en Firebase');})
+    .catch(function(e){showToast('Error al guardar: '+e.message,'err');console.error('saveConfig error:',e);});
 }
 function addCategoria(nombre){
   nombre=nombre.trim();if(!nombre)return;
-  if(configData.categorias.find(c=>c.nombre.toLowerCase()===nombre.toLowerCase())){showToast('Ya existe','err');return;}
-  configData.categorias.push({id:'c'+Date.now(),nombre});
-  saveConfig();showToast('Categoría agregada');renderConfig();
+  if(configData.categorias.find(function(c){return c.nombre.toLowerCase()===nombre.toLowerCase();})){showToast('Ya existe','err');return;}
+  configData.categorias.push({id:'c'+Date.now(),nombre:nombre});
+  saveConfig();showToast('Categoría agregada ✓');renderConfig();
 }
 function delCategoria(id){
   configData.categorias=configData.categorias.filter(c=>c.id!==id);
@@ -534,9 +549,9 @@ function delCategoria(id){
 }
 function addMetodo(nombre){
   nombre=nombre.trim();if(!nombre)return;
-  if(configData.metodos.find(m=>m.nombre.toLowerCase()===nombre.toLowerCase())){showToast('Ya existe','err');return;}
-  configData.metodos.push({id:'m'+Date.now(),nombre,tipo:'banco'});
-  saveConfig();showToast('Banco/método agregado');renderConfig();
+  if(configData.metodos.find(function(m){return m.nombre.toLowerCase()===nombre.toLowerCase();})){showToast('Ya existe','err');return;}
+  configData.metodos.push({id:'m'+Date.now(),nombre:nombre,tipo:'banco'});
+  saveConfig();showToast('Banco/método agregado ✓');renderConfig();
 }
 function delMetodo(id){
   if(['efectivo','banorte','santander'].includes(id)){showToast('No se puede eliminar','err');return;}
@@ -888,37 +903,34 @@ document.addEventListener('click',function(e){
 let editingId=null;
 let editFile=null;
 function openEdit(id){
-  const m=[...movimientosData,...baicaoData].find(x=>x.id===id);
-  if(!m){showToast('No se encontró el registro — recarga la página','err');return;}
+  var found=null;
+  for(var i=0;i<movimientosData.length;i++){if(movimientosData[i].id===id){found=movimientosData[i];break;}}
+  if(!found){for(var j=0;j<baicaoData.length;j++){if(baicaoData[j].id===id){found=baicaoData[j];break;}}}
+  if(!found){showToast('Registro no encontrado, recarga','err');return;}
   editingId=id; editFile=null;
-  const catOpts=configData.categorias.map(c=>`<option value="${c.nombre}"${c.nombre===m.categoria?' selected':''}>${c.nombre}</option>`).join('');
-  const metOpts=configData.metodos.map(mt=>`<option value="${mt.id}"${mt.id===m.metodoPagoId?' selected':''}>${mt.nombre}</option>`).join('');
-  const modal=document.getElementById('editModal');
-  modal.querySelector('.mbody').innerHTML=`
-    <div class="fgrid2">
-      <div class="frow"><label>Categoría</label>
-        <select id="eCat"><option value="">Seleccionar...</option>${catOpts}</select></div>
-      <div class="frow"><label>Fecha</label>
-        <input type="date" id="eFecha" value="${m.fecha||''}"></div>
-      <div class="frow"><label>Importe</label>
-        <input type="number" id="eImporte" value="${m.importe||''}" min="0" step="0.01"></div>
-      <div class="frow"><label>Método de pago</label>
-        <select id="eMetodo"><option value="">Seleccionar...</option>${metOpts}</select></div>
-    </div>
-    <div class="frow"><label>Descripción</label>
-      <textarea id="eDesc">${m.descripcion||''}</textarea></div>
-    <div class="frow"><label>Comprobante actual</label>
-      <div id="eImgActual" style="margin-bottom:8px">
-        ${m.imagenURL
-          ?`<img src="${m.imagenURL}" style="max-height:120px;border-radius:var(--r);border:1px solid var(--bo)">`
-          :'<span style="color:var(--mu);font-size:.85rem">Sin imagen</span>'}
-      </div>
-      <label for="eFile" class="uploadArea" style="display:block;cursor:pointer;padding:.9rem">
-        <p style="font-size:.82rem">📎 ${m.imagenURL?'Reemplazar imagen':'Subir imagen'}</p>
-        <input type="file" id="eFile" accept="image/*" style="display:none" onchange="editPreviewFn(this)">
-      </label>
-      <div id="eImgNew"></div>
-    </div>`;
+  var m=found;
+  var catOpts='<option value="">Seleccionar...</option>';
+  configData.categorias.forEach(function(c){catOpts+='<option value="'+esc(c.nombre)+'"'+(c.nombre===m.categoria?' selected':'')+'>'+esc(c.nombre)+'</option>';});
+  var metOpts='<option value="">Seleccionar...</option>';
+  configData.metodos.forEach(function(mt){metOpts+='<option value="'+esc(mt.id)+'"'+(mt.id===m.metodoPagoId?' selected':'')+'>'+esc(mt.nombre)+'</option>';});
+  var imgHtml=m.imagenURL
+    ?'<img src="'+m.imagenURL+'" style="max-height:130px;border-radius:var(--r);border:1px solid var(--bo);max-width:100%">'
+    :'<span style="color:var(--mu);font-size:.85rem">Sin imagen</span>';
+  var b='';
+  b+='<div class="fgrid2">';
+  b+='<div class="frow"><label>Categoría</label><select id="eCat">'+catOpts+'</select></div>';
+  b+='<div class="frow"><label>Fecha</label><input type="date" id="eFecha" value="'+esc(m.fecha||'')+'"></div>';
+  b+='<div class="frow"><label>Importe</label><input type="number" id="eImporte" value="'+Number(m.importe||0)+'" min="0" step="0.01"></div>';
+  b+='<div class="frow"><label>Método de pago</label><select id="eMetodo">'+metOpts+'</select></div>';
+  b+='</div>';
+  b+='<div class="frow"><label>Descripción</label><textarea id="eDesc">'+esc(m.descripcion||'')+'</textarea></div>';
+  b+='<div class="frow"><label>Comprobante</label>';
+  b+='<div style="margin-bottom:8px">'+imgHtml+'</div>';
+  b+='<label for="eFile" class="uploadArea" style="display:block;cursor:pointer;padding:.9rem"><p style="font-size:.82rem">📎 '+(m.imagenURL?'Reemplazar imagen':'Subir imagen')+'</p></label>';
+  b+='<input type="file" id="eFile" accept="image/*" style="display:none" onchange="editPreviewFn(this)">';
+  b+='<div id="eImgNew"></div></div>';
+  var modal=document.getElementById('editModal');
+  modal.querySelector('.mbody').innerHTML=b;
   modal.style.display='flex';
 }
 function editPreviewFn(input){
