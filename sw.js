@@ -1,4 +1,4 @@
-const CACHE = 'flujocaja-v2';
+const CACHE = 'flujocaja-v3';
 const BASE = '/flujocaja-pro/';
 const ASSETS = [
   BASE,
@@ -14,7 +14,7 @@ self.addEventListener('install', e => {
       Promise.allSettled(ASSETS.map(a => c.add(a).catch(() => {})))
     )
   );
-  self.skipWaiting();
+  self.skipWaiting(); // Activar inmediatamente sin esperar
 });
 
 self.addEventListener('activate', e => {
@@ -23,23 +23,23 @@ self.addEventListener('activate', e => {
       Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
     )
   );
-  self.clients.claim();
+  self.clients.claim(); // Tomar control de todas las pestañas abiertas
 });
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (e.request.url.includes('firestore') || e.request.url.includes('googleapis')) return;
-  if (e.request.url.includes('unpkg.com') || e.request.url.includes('fonts.google')) return;
+  if (e.request.url.includes('jsdelivr') || e.request.url.includes('fonts.google')) return;
+  // Siempre intentar red primero, caché como respaldo
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request).then(res => {
-        if (res && res.status === 200 && res.type === 'basic') {
+    fetch(e.request)
+      .then(res => {
+        if (res && res.status === 200) {
           const clone = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, clone));
         }
         return res;
-      });
-    })
+      })
+      .catch(() => caches.match(e.request))
   );
 });
