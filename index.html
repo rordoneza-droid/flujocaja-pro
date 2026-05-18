@@ -413,16 +413,15 @@ let _demoCbs=[];
 ══════════════════════════════════════════ */
 function initFirebase(){
   try{
-    if(typeof firebase==='undefined') throw new Error('SDK no cargó — revisa tu conexión');
-    if(FIREBASE_CONFIG.apiKey==='TU_API_KEY'||!FIREBASE_CONFIG.apiKey) throw new Error('Claves Firebase no configuradas');
-    firebase.initializeApp(FIREBASE_CONFIG);
-    db=firebase.firestore();
-    db.collection('_ping').limit(1).get()
-      .then(()=>showToast('✓ Conectado a Firebase — datos en tiempo real','ok'))
-      .catch(e=>showToast('Firebase conectado (sin permisos de prueba): '+e.code,'warn'));
+    if(typeof firebase==='undefined') throw new Error('SDK no cargó');
+    if(FIREBASE_CONFIG.apiKey==='TU_API_KEY'||!FIREBASE_CONFIG.apiKey) throw new Error('Claves no configuradas');
+    // Evitar error de app duplicada en recargas
+    const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore(app);
+    showToast('✓ Conectado a Firebase','ok');
   }catch(e){
     DEMO_MODE=true;
-    console.error('Firebase falló:',e.message);
+    console.error('Firebase error:',e.message);
     showToast('⚠ Modo demo: '+e.message,'warn');
   }
 }
