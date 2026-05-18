@@ -10,8 +10,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FlujoCaja">
-<script src="https://unpkg.com/firebase@10.7.1/compat/app.js"></script>
-<script src="https://unpkg.com/firebase@10.7.1/compat/firestore.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.7.1/firebase-app-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.7.1/firebase-firestore-compat.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
@@ -413,15 +413,17 @@ let _demoCbs=[];
 ══════════════════════════════════════════ */
 function initFirebase(){
   try{
-    if(typeof firebase==='undefined') throw new Error('no-sdk');
-    if(FIREBASE_CONFIG.apiKey==='TU_API_KEY'||!FIREBASE_CONFIG.apiKey) throw new Error('no-config');
+    if(typeof firebase==='undefined') throw new Error('SDK no cargó — revisa tu conexión');
+    if(FIREBASE_CONFIG.apiKey==='TU_API_KEY'||!FIREBASE_CONFIG.apiKey) throw new Error('Claves Firebase no configuradas');
     firebase.initializeApp(FIREBASE_CONFIG);
     db=firebase.firestore();
-    showToast('Conectado a Firebase ✓','ok');
+    db.collection('_ping').limit(1).get()
+      .then(()=>showToast('✓ Conectado a Firebase — datos en tiempo real','ok'))
+      .catch(e=>showToast('Firebase conectado (sin permisos de prueba): '+e.code,'warn'));
   }catch(e){
     DEMO_MODE=true;
-    if(e.message==='no-sdk') showToast('Modo demo — abre el archivo desde un servidor web','warn');
-    else showToast('Modo demo local activo (configura Firebase para multiusuario)','warn');
+    console.error('Firebase falló:',e.message);
+    showToast('⚠ Modo demo: '+e.message,'warn');
   }
 }
 
@@ -845,7 +847,7 @@ function filterH(){
     r+='<td class="desc" title="'+esc(m.descripcion)+'">'+esc(m.descripcion||'—')+'</td>';
     r+='<td>';
     if(m.imagenURL){
-      r+='<button class="iconBtn eye btnImg" data-id="'+esc(m.id)+'" title="Ver comprobante">'+svgEye()+' Ver</button>';
+      r+='<button class="iconBtn eye btnImg" data-id="'+esc(m.id)+'" onclick="abrirImg(this.dataset.id)" title="Ver comprobante">'+svgEye()+' Ver</button>';
     } else {
       r+='<span style="color:var(--mu);font-size:.78rem">Sin imagen</span>';
     }
@@ -856,8 +858,8 @@ function filterH(){
     }
     r+='</td><td style="white-space:nowrap">';
     if(canEdit){
-      r+='<button class="iconBtn btnEdit" data-id="'+esc(m.id)+'" style="color:var(--bl)" title="Editar">'+svgEdit()+'</button> ';
-      r+='<button class="iconBtn del btnDel" data-id="'+esc(m.id)+'" title="Eliminar">'+svgDel()+'</button>';
+      r+='<button class="iconBtn btnEdit" data-id="'+esc(m.id)+'" onclick="openEdit(this.dataset.id)" style="color:var(--bl)" title="Editar">'+svgEdit()+'</button> ';
+      r+='<button class="iconBtn del btnDel" data-id="'+esc(m.id)+'" onclick="delMov(this.dataset.id)" title="Eliminar">'+svgDel()+'</button>';
     } else {
       r+='<span style="color:var(--mu)">—</span>';
     }
@@ -888,7 +890,7 @@ let editingId=null;
 let editFile=null;
 function openEdit(id){
   const m=[...movimientosData,...baicaoData].find(x=>x.id===id);
-  if(!m)return;
+  if(!m){showToast('No se encontró el registro — recarga la página','err');return;}
   editingId=id; editFile=null;
   const catOpts=configData.categorias.map(c=>`<option value="${c.nombre}"${c.nombre===m.categoria?' selected':''}>${c.nombre}</option>`).join('');
   const metOpts=configData.metodos.map(mt=>`<option value="${mt.id}"${mt.id===m.metodoPagoId?' selected':''}>${mt.nombre}</option>`).join('');
@@ -1231,10 +1233,10 @@ function showToast(msg,type='ok'){
   el.className=`toastItem ${type}`;el.textContent=msg;
   t.appendChild(el);setTimeout(()=>el.remove(),3500);
 }
-function svgEdit(){return`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`}
-function svgEye(){return`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`}
-function svgDel(){return`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>`}
-function svgOk(){return`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`}
+function svgEdit(){return'<svg style="pointer-events:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';}
+function svgEye(){return'<svg style="pointer-events:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';}
+function svgDel(){return'<svg style="pointer-events:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';}
+function svgOk(){return'<svg style="pointer-events:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';}
 
 /* ══════════════════════════════════════════
    UTILIDADES DE REPORTE
