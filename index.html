@@ -353,7 +353,10 @@ const FIREBASE_CONFIG = {
     </div>
   </div>
 </div>
-  <img id="imgModalSrc" src="" alt="Comprobante">
+
+<!-- IMG MODAL -->
+<div id="imgModal" style="position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:1rem">
+  <img id="imgModalSrc" src="" alt="Comprobante" style="max-width:92vw;max-height:78vh;border-radius:var(--r);object-fit:contain">
   <div class="imgBtns">
     <a id="imgModalOpen" href="" target="_blank">↗ Abrir en nueva pestaña</a>
     <a id="imgModalDl" href="" download="comprobante.jpg" target="_blank">⬇ Descargar</a>
@@ -903,10 +906,11 @@ document.addEventListener('click',function(e){
 let editingId=null;
 let editFile=null;
 function openEdit(id){
+  try{
   var found=null;
   for(var i=0;i<movimientosData.length;i++){if(movimientosData[i].id===id){found=movimientosData[i];break;}}
   if(!found){for(var j=0;j<baicaoData.length;j++){if(baicaoData[j].id===id){found=baicaoData[j];break;}}}
-  if(!found){showToast('Registro no encontrado, recarga','err');return;}
+  if(!found){showToast('ID: '+id+' no encontrado en '+movimientosData.length+' registros','err');return;}
   editingId=id; editFile=null;
   var m=found;
   var catOpts='<option value="">Seleccionar...</option>';
@@ -932,6 +936,7 @@ function openEdit(id){
   var modal=document.getElementById('editModal');
   modal.querySelector('.mbody').innerHTML=b;
   modal.style.display='flex';
+  }catch(err){showToast('Error al abrir editor: '+err.message,'err');console.error(err);}
 }
 function editPreviewFn(input){
   editFile=input.files[0];if(!editFile)return;
@@ -1553,6 +1558,15 @@ function _generarFlujoReporte(movs,tipo){
 /* ══════════════════════════════════════════
    INIT
 ══════════════════════════════════════════ */
+// Registrar funciones globales
+window.openEdit=openEdit;
+window.delMov=delMov;
+window.abrirImg=abrirImg;
+window.replaceImg=replaceImg;
+window.closeEdit=closeEdit;
+window.saveEdit=saveEdit;
+window.marcar=marcar;
+
 window.addEventListener('load',()=>{
   initFirebase();
   renderLogin();
