@@ -1439,35 +1439,24 @@ function pdfTable(doc,head,rows,footText,startY){
 }
 
 function reportHistorialPDF(){
-  if(!window.jspdf){showToast("Librería PDF no cargó, recarga la página","err");return;}
-  if(!DEMO_MODE&&db&&movimientosData.length===0){showToast('Cargando datos...','warn');return;}
-  const data=getFilteredH();
-  if(!data.length){showToast('Sin datos para exportar','err');return;}
-  let ti=0,te=0;
-  const rows=data.map(m=>{
-    const imp=+m.importe||0;
-    if(m.tipo==='ingreso') ti+=imp; else te+=imp;
-    return[
-      m.tipo==='ingreso'?'↑ Ingreso':'↓ Egreso',
-      m.categoria||'—',
-      m.fecha||'—',
-      (m.tipo==='ingreso'?'+':'-')+'$'+imp.toFixed(2),
-      m.metodoPago||'—',
-      m.responsable||'—',
-      (m.descripcion||'').substring(0,45),
-      m.imagenURL?'✓ Sí':'—'
-    ];
-  });
-  const doc=newPDF('TODOS LOS REGISTROS',rFecha(),{ti,te});
-  pdfTable(doc,
-    ['Tipo','Categoría','Fecha','Importe','Método','Responsable','Descripción','Comprobante'],
-    rows,
-    'Total registros: '+data.length+'   |   Ingresos: +$'+ti.toFixed(2)+'   |   Egresos: -$'+te.toFixed(2)+'   |   Saldo: '+(ti-te>=0?'+':'')+'$'+(ti-te).toFixed(2)
-  );
+  if(typeof window.jspdf==='undefined'){showToast('PDF no disponible — recarga la página','err');return;}
   try{
+    const data=getFilteredH();
+    if(!data.length){showToast('Sin datos para exportar','err');return;}
+    let ti=0,te=0;
+    const rows=data.map(m=>{
+      const imp=+m.importe||0;
+      if(m.tipo==='ingreso') ti+=imp; else te+=imp;
+      return[m.tipo==='ingreso'?'↑ Ingreso':'↓ Egreso',m.categoria||'—',m.fecha||'—',
+        (m.tipo==='ingreso'?'+':'-')+'$'+imp.toFixed(2),m.metodoPago||'—',
+        m.responsable||'—',(m.descripcion||'').substring(0,45),m.imagenURL?'✓ Sí':'—'];
+    });
+    const doc=newPDF('TODOS LOS REGISTROS',rFecha(),{ti,te});
+    pdfTable(doc,['Tipo','Categoría','Fecha','Importe','Método','Responsable','Descripción','Comprobante'],rows,
+      'Registros: '+data.length+'  |  Ingresos: +$'+ti.toFixed(2)+'  |  Egresos: -$'+te.toFixed(2)+'  |  Saldo: '+(ti-te>=0?'+':'')+'$'+(ti-te).toFixed(2));
     doc.save('FlujoCaja_Registros_'+today()+'.pdf');
     showToast('📄 PDF descargado ✓');
-  }catch(e){showToast('Error PDF: '+e.message,'err');console.error(e);}
+  }catch(err){showToast('Error PDF: '+err.message,'err');console.error('PDF:',err);}
 }
 
 
@@ -1528,35 +1517,23 @@ function reportHistorialXLS(){
 
 
 function reportBaicaoPDF(){
-  if(!window.jspdf){showToast("Librería PDF no cargó, recarga la página","err");return;}
-  const data=getFilteredB();
-  if(!data.length){showToast('Sin datos para exportar','err');return;}
-  let total=0;
-  const pendientes=data.filter(m=>!m.baicao).length;
-  const enviados=data.filter(m=>m.baicao).length;
-  const rows=data.map(m=>{
-    const imp=+m.importe||0; total+=imp;
-    return[
-      m.baicao?'✓ Enviado':'⏳ Pendiente',
-      m.categoria||'—',
-      m.fecha||'—',
-      '-$'+imp.toFixed(2),
-      m.metodoPago||'—',
-      m.responsable||'—',
-      (m.descripcion||'').substring(0,45),
-      m.imagenURL?'✓ Sí':'—'
-    ];
-  });
-  const doc=newPDF('VISTA BAICAO — EGRESOS',rFecha(),{ti:0,te:total});
-  pdfTable(doc,
-    ['Estado','Categoría','Fecha','Importe','Método','Responsable','Descripción','Comprobante'],
-    rows,
-    'Total: $'+total.toFixed(2)+'   |   Registros: '+data.length+'   |   Enviados al Baicao: '+enviados+'   |   Pendientes: '+pendientes
-  );
+  if(typeof window.jspdf==='undefined'){showToast('PDF no disponible — recarga la página','err');return;}
   try{
+    const data=getFilteredB();
+    if(!data.length){showToast('Sin datos para exportar','err');return;}
+    let total=0;
+    const rows=data.map(m=>{
+      const imp=+m.importe||0; total+=imp;
+      return[m.baicao?'✓ Enviado':'⏳ Pendiente',m.categoria||'—',m.fecha||'—',
+        '-$'+imp.toFixed(2),m.metodoPago||'—',m.responsable||'—',
+        (m.descripcion||'').substring(0,45),m.imagenURL?'✓ Sí':'—'];
+    });
+    const doc=newPDF('VISTA BAICAO — EGRESOS',rFecha(),{ti:0,te:total});
+    pdfTable(doc,['Estado','Categoría','Fecha','Importe','Método','Responsable','Descripción','Comprobante'],rows,
+      'Total: $'+total.toFixed(2)+'  |  Registros: '+data.length+'  |  Enviados: '+data.filter(m=>m.baicao).length+'  |  Pendientes: '+data.filter(m=>!m.baicao).length);
     doc.save('FlujoCaja_Baicao_'+today()+'.pdf');
     showToast('📄 PDF descargado ✓');
-  }catch(e){showToast('Error PDF: '+e.message,'err');console.error(e);}
+  }catch(err){showToast('Error PDF: '+err.message,'err');console.error('PDF:',err);}
 }
 
 
