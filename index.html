@@ -313,7 +313,7 @@ const FIREBASE_CONFIG = {
 </div>
 
 <!-- IMG MODAL -->
-<div id="imgModal" style="position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:1rem">
+<div id="imgModal" style="position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:99998;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:1rem">
   <img id="imgModalSrc" src="" alt="Comprobante" style="max-width:92vw;max-height:78vh;border-radius:10px;object-fit:contain">
   <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
     <a id="imgModalOpen" href="" target="_blank" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:.5rem 1rem;font-size:.82rem;color:#dde3f2;text-decoration:none">↗ Abrir en nueva pestaña</a>
@@ -362,7 +362,7 @@ const FIREBASE_CONFIG = {
 </div>
 
 <!-- IMG MODAL -->
-<div id="imgModal" style="position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:1rem">
+<div id="imgModal" style="position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:99998;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:1rem">
   <img id="imgModalSrc" src="" alt="Comprobante" style="max-width:92vw;max-height:78vh;border-radius:var(--r);object-fit:contain">
   <div class="imgBtns">
     <a id="imgModalOpen" href="" target="_blank">↗ Abrir en nueva pestaña</a>
@@ -379,7 +379,7 @@ const FIREBASE_CONFIG = {
    USUARIOS
 ══════════════════════════════════════════ */
 const USERS=[
-  {id:'manuel',    name:'Manuel',            role:'operador',  pass:'manuel2026',    color:'#f59e0b',bg:'rgba(245,158,11,.15)'},
+  {id:'manuel',    name:'Manuel',            role:'supervisor',pass:'manuel2026',    color:'#f59e0b',bg:'rgba(245,158,11,.15)'},
   {id:'luisobando',name:'Luis Obando',        role:'operador',  pass:'luisobando2026',color:'#34d399',bg:'rgba(52,211,153,.15)'},
   {id:'jonnathan', name:'Jonnathan Palacios', role:'supervisor',pass:'jonnathan2026', color:'#60a5fa',bg:'rgba(96,165,250,.15)'},
   {id:'fernando',  name:'Fernando Guzmán',    role:'supervisor',pass:'fernando2026',  color:'#a78bfa',bg:'rgba(167,139,250,.15)'},
@@ -876,7 +876,7 @@ function filterH(){
     r+='<td class="desc" title="'+esc(m.descripcion)+'">'+esc(m.descripcion||'—')+'</td>';
     r+='<td>';
     if(m.imagenURL){
-      r+='<button class="iconBtn eye btnImg" data-id="'+esc(m.id)+'" onclick="abrirImg(this.dataset.id)" title="Ver comprobante">'+svgEye()+' Ver</button>';
+      r+='<button class="iconBtn eye btnImg" data-id="'+esc(m.id)+'" title="Ver comprobante">'+svgEye()+' Ver</button>';
     } else {
       r+='<span style="color:var(--mu);font-size:.78rem">Sin imagen</span>';
     }
@@ -1256,7 +1256,15 @@ function openImg(url){
   document.getElementById('imgModalDl').href=url;
   document.getElementById('imgModal').classList.add('open');
 }
-function closeImg(){document.getElementById('imgModal').classList.remove('open');document.getElementById('imgModalSrc').src='';}
+function closeImg(){
+  var m=document.getElementById('imgModal');
+  if(m){m.classList.remove('open');}
+  var s=document.getElementById('imgModalSrc');
+  if(s){s.src='';}
+}
+document.addEventListener('click',function(e){
+  if(e.target&&e.target.id==='imgModal') closeImg();
+});
 document.getElementById('imgModal').addEventListener('click',function(e){if(e.target===this)closeImg();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeImg();});
 
@@ -1457,8 +1465,10 @@ function reportHistorialPDF(){
     rows,
     'Total registros: '+data.length+'   |   Ingresos: +$'+ti.toFixed(2)+'   |   Egresos: -$'+te.toFixed(2)+'   |   Saldo: '+(ti-te>=0?'+':'')+'$'+(ti-te).toFixed(2)
   );
-  doc.save('FlujoCaja_Registros_'+today()+'.pdf');
-  showToast('📄 PDF descargado ✓');
+  try{
+    doc.save('FlujoCaja_Registros_'+today()+'.pdf');
+    showToast('📄 PDF descargado ✓');
+  }catch(e){showToast('Error PDF: '+e.message,'err');console.error(e);}
 }
 
 
@@ -1543,8 +1553,10 @@ function reportBaicaoPDF(){
     rows,
     'Total: $'+total.toFixed(2)+'   |   Registros: '+data.length+'   |   Enviados al Baicao: '+enviados+'   |   Pendientes: '+pendientes
   );
-  doc.save('FlujoCaja_Baicao_'+today()+'.pdf');
-  showToast('📄 PDF descargado ✓');
+  try{
+    doc.save('FlujoCaja_Baicao_'+today()+'.pdf');
+    showToast('📄 PDF descargado ✓');
+  }catch(e){showToast('Error PDF: '+e.message,'err');console.error(e);}
 }
 
 
