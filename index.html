@@ -880,11 +880,10 @@ function filterH(){
     }
     r+='</td><td style="white-space:nowrap">';
     if(canEdit){
-      window._recs[m.id]=m;
-      var sid=m.id.replace(/[^a-zA-Z0-9]/g,'');
-      window['_ed_'+sid]=m.id;
-      r+='<button class="iconBtn" onclick="window.openEdit(window[\'_ed_'+sid+'\'])" style="color:var(--bl)" title="Editar">'+svgEdit()+'</button> ';
-      r+='<button class="iconBtn del" onclick="window.delMov(window[\'_ed_'+sid+'\'])" title="Eliminar">'+svgDel()+'</button>';
+      var eid=m.id;
+      window['rec_'+eid]=m;
+      r+='<button class="iconBtn" style="color:var(--bl);font-size:1.1rem" title="Editar" onclick="abrirEditar(this.getAttribute(\'data-eid\'))" data-eid="'+eid+'">✏️</button> ';
+      r+='<button class="iconBtn del" style="font-size:1.1rem" title="Eliminar" onclick="eliminarRegistro(this.getAttribute(\'data-eid\'))" data-eid="'+eid+'">🗑️</button>';
     } else {
       r+='<span style="color:var(--mu)">—</span>';
     }
@@ -1615,6 +1614,126 @@ function doInstall(){
   window._deferredPrompt.userChoice.then(()=>{window._deferredPrompt=null;hideInstallBanner();});
 }
 window.addEventListener('beforeinstallprompt',e=>{window._deferredPrompt=e;});
+
+/* ══ EDITAR REGISTRO - FUNCIONES DEFINITIVAS ══ */
+function abrirEditar(id){
+  // Buscar el registro
+  var m=window['rec_'+id]||null;
+  if(!m){
+    for(var i=0;i<movimientosData.length;i++){
+      if(movimientosData[i].id===id){m=movimientosData[i];break;}
+    }
+  }
+  if(!m){showToast('Registro no encontrado','err');return;}
+  
+  editingId=id; editFile=null;
+  
+  // Quitar modal anterior
+  var prev=document.getElementById('editModalDyn');
+  if(prev) prev.remove();
+  
+  // Opciones categoría
+  var catOpts='<option value="">Seleccionar...</option>';
+  for(var ci=0;ci<configData.categorias.length;ci++){
+    var c=configData.categorias[ci];
+    catOpts+='<option value="'+c.nombre+'"'+(c.nombre===m.categoria?' selected':'')+'>'+c.nombre+'</option>';
+  }
+  // Opciones método
+  var metOpts='<option value="">Seleccionar...</option>';
+  for(var mi=0;mi<configData.metodos.length;mi++){
+    var mt=configData.metodos[mi];
+    metOpts+='<option value="'+mt.id+'"'+(mt.id===m.metodoPagoId?' selected':'')+'>'+mt.nombre+'</option>';
+  }
+
+  var div=document.createElement('div');
+  div.id='editModalDyn';
+  div.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
+  
+  var desc=(m.descripcion||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  
+  div.innerHTML=
+    '<div style="background:#111827;border:1px solid rgba(255,255,255,.2);border-radius:14px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto">'+
+    '<div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;align-items:center">'+
+    '<b style="color:#f5a428">✏️ Editar registro</b>'+
+    '<button onclick="cerrarModal()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer;padding:0;line-height:1">×</button>'+
+    '</div>'+
+    '<div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+    '<div><div style="font-size:.72rem;color:#6b7899;margin-bottom:4px;text-transform:uppercase">Categoría</div>'+
+    '<select id="_eCat" style="width:100%;background:#1a2236;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:8px;color:#dde3f2;font-size:.9rem">'+catOpts+'</select></div>'+
+    '<div><div style="font-size:.72rem;color:#6b7899;margin-bottom:4px;text-transform:uppercase">Fecha</div>'+
+    '<input type="date" id="_eFecha" value="'+(m.fecha||'')+'" style="width:100%;background:#1a2236;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:8px;color:#dde3f2;font-size:.9rem"></div>'+
+    '<div><div style="font-size:.72rem;color:#6b7899;margin-bottom:4px;text-transform:uppercase">Importe</div>'+
+    '<input type="number" id="_eImporte" value="'+(m.importe||0)+'" min="0" step="0.01" style="width:100%;background:#1a2236;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:8px;color:#dde3f2;font-size:.9rem"></div>'+
+    '<div><div style="font-size:.72rem;color:#6b7899;margin-bottom:4px;text-transform:uppercase">Método</div>'+
+    '<select id="_eMetodo" style="width:100%;background:#1a2236;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:8px;color:#dde3f2;font-size:.9rem">'+metOpts+'</select></div>'+
+    '<div style="grid-column:span 2"><div style="font-size:.72rem;color:#6b7899;margin-bottom:4px;text-transform:uppercase">Descripción</div>'+
+    '<textarea id="_eDesc" rows="2" style="width:100%;background:#1a2236;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:8px;color:#dde3f2;font-size:.9rem;resize:vertical;font-family:inherit">'+desc+'</textarea></div>'+
+    '<div style="grid-column:span 2">'+
+    (m.imagenURL?'<img src="'+m.imagenURL+'" style="max-height:80px;border-radius:6px;display:block;margin-bottom:8px">':'')+
+    '<label for="_eFile" style="display:block;border:2px dashed rgba(255,255,255,.15);border-radius:8px;padding:10px;text-align:center;cursor:pointer;font-size:.82rem;color:#6b7899">📎 '+(m.imagenURL?'Reemplazar':'Subir')+' imagen</label>'+
+    '<input type="file" id="_eFile" accept="image/*" style="display:none">'+
+    '<div id="_eImgNew"></div>'+
+    '</div>'+
+    '</div>'+
+    '<div style="padding:12px 16px;border-top:1px solid rgba(255,255,255,.1);display:flex;gap:8px;justify-content:flex-end">'+
+    '<button onclick="cerrarModal()" style="background:#1a2236;border:1px solid rgba(255,255,255,.15);color:#dde3f2;border-radius:8px;padding:8px 14px;cursor:pointer;font-family:inherit">Cancelar</button>'+
+    '<button id="_btnGuardar" onclick="guardarEdicion()" style="background:#f5a428;color:#000;font-weight:700;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-family:inherit">Guardar cambios</button>'+
+    '</div>'+
+    '</div>';
+
+  document.body.appendChild(div);
+  
+  document.getElementById('_eFile').addEventListener('change',function(){
+    editFile=this.files[0];
+    if(!editFile)return;
+    var r=new FileReader();
+    r.onload=function(ev){
+      document.getElementById('_eImgNew').innerHTML='<img src="'+ev.target.result+'" style="max-height:70px;border-radius:6px;margin-top:6px"><span style="font-size:.75rem;color:#22c55e;margin-left:6px">✓ Lista</span>';
+    };
+    r.readAsDataURL(editFile);
+  });
+}
+
+async function guardarEdicion(){
+  if(!editingId)return;
+  var cat=document.getElementById('_eCat').value;
+  var fecha=document.getElementById('_eFecha').value;
+  var importe=parseFloat(document.getElementById('_eImporte').value);
+  var metodo=document.getElementById('_eMetodo').value;
+  var desc=document.getElementById('_eDesc').value;
+  if(!cat||!fecha||!importe||!metodo){showToast('Completa todos los campos','err');return;}
+  var btn=document.getElementById('_btnGuardar');
+  if(btn){btn.disabled=true;btn.textContent='Guardando...';}
+  var met=configData.metodos.find(function(x){return x.id===metodo;});
+  var update={categoria:cat,fecha:fecha,importe:importe,metodoPagoId:metodo,metodoPago:met?met.nombre:metodo,descripcion:desc};
+  if(editFile){
+    showToast('Comprimiendo...','ok');
+    var comp=await compressImage(editFile);
+    update.imagenURL=await fileToB64(comp);
+  }
+  try{
+    if(DEMO_MODE){
+      var arr=DStore.mov();
+      var idx=arr.findIndex(function(x){return x.id===editingId;});
+      if(idx>=0) arr[idx]=Object.assign({},arr[idx],update);
+      DStore.saveMov(arr);_demoNotify();
+    } else {
+      await db.collection('movimientos').doc(editingId).update(update);
+    }
+    showToast('✓ Registro actualizado');
+    var modal=document.getElementById('editModalDyn');
+    if(modal) modal.remove();
+    editingId=null; editFile=null;
+  }catch(e){
+    showToast('Error: '+e.message,'err');
+    if(btn){btn.disabled=false;btn.textContent='Guardar cambios';}
+  }
+}
+
+function cerrarModal(){var m=document.getElementById("editModalDyn");if(m)m.remove();editingId=null;editFile=null;}
+window.abrirEditar=abrirEditar;
+window.cerrarModal=cerrarModal;
+window.guardarEdicion=guardarEdicion;
 </script>
 </body>
 </html>
