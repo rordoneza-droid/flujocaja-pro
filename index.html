@@ -880,11 +880,8 @@ function filterH(){
     }
     r+='</td><td style="white-space:nowrap">';
     if(canEdit){
-      window._recs[m.id]=m;
-      var sid=m.id.replace(/[^a-zA-Z0-9]/g,'');
-      window['_ed_'+sid]=m.id;
-      r+='<button class="iconBtn" onclick="window.openEdit(window[\'_ed_'+sid+'\'])" style="color:var(--bl)" title="Editar">'+svgEdit()+'</button> ';
-      r+='<button class="iconBtn del" onclick="window.delMov(window[\'_ed_'+sid+'\'])" title="Eliminar">'+svgDel()+'</button>';
+      r+='<button class="iconBtn" style="color:var(--bl);font-size:1rem" title="Editar" onclick="editarRegistro(\''+m.id+'\')">✏️</button> ';
+      r+='<button class="iconBtn del" style="font-size:1rem" title="Eliminar" onclick="eliminarRegistro(\''+m.id+'\')">🗑️</button>';
     } else {
       r+='<span style="color:var(--mu)">—</span>';
     }
@@ -913,6 +910,53 @@ document.addEventListener('click',function(e){
 ══════════════════════════════════════════ */
 let editingId=null;
 let editFile=null;
+// Funciones de acceso directo desde botones
+function editarRegistro(id){
+  var m=null;
+  for(var i=0;i<movimientosData.length;i++){
+    if(movimientosData[i].id===id){m=movimientosData[i];break;}
+  }
+  if(!m){showToast('Registro no encontrado','err');return;}
+  editingId=id;
+  editFile=null;
+  // Construir contenido del modal
+  var catOpts='<option value="">Seleccionar...</option>';
+  configData.categorias.forEach(function(c){
+    catOpts+='<option value="'+c.nombre+'"'+(c.nombre===m.categoria?' selected':'')+'>'+c.nombre+'</option>';
+  });
+  var metOpts='<option value="">Seleccionar...</option>';
+  configData.metodos.forEach(function(mt){
+    metOpts+='<option value="'+mt.id+'"'+(mt.id===m.metodoPagoId?' selected':'')+'>'+mt.nombre+'</option>';
+  });
+  var imgPart=m.imagenURL
+    ?'<img src="'+m.imagenURL+'" style="max-width:100%;max-height:120px;border-radius:8px;display:block;margin-bottom:8px">'
+    :'<p style="color:var(--mu);font-size:.85rem;margin-bottom:8px">Sin imagen actual</p>';
+  var content='';
+  content+='<div class="fgrid2">';
+  content+='<div class="frow"><label>Categoría</label><select id="eCat">'+catOpts+'</select></div>';
+  content+='<div class="frow"><label>Fecha</label><input type="date" id="eFecha" value="'+(m.fecha||'')+'"></div>';
+  content+='<div class="frow"><label>Importe</label><input type="number" id="eImporte" value="'+(m.importe||0)+'" min="0" step="0.01"></div>';
+  content+='<div class="frow"><label>Método de pago</label><select id="eMetodo">'+metOpts+'</select></div>';
+  content+='</div>';
+  content+='<div class="frow"><label>Descripción</label><textarea id="eDesc">'+(m.descripcion||'')+'</textarea></div>';
+  content+='<div class="frow"><label>Comprobante</label>'+imgPart;
+  content+='<label for="eFile" class="uploadArea" style="display:block;cursor:pointer;padding:.8rem;margin-top:4px">';
+  content+='<p style="font-size:.82rem">📎 '+(m.imagenURL?'Reemplazar':'Subir')+' imagen</p></label>';
+  content+='<input type="file" id="eFile" accept="image/*" style="display:none" onchange="editPreviewFn(this)">';
+  content+='<div id="eImgNew"></div></div>';
+  document.getElementById('editModal').querySelector('.mbody').innerHTML=content;
+  document.getElementById('editModal').style.display='flex';
+}
+
+function eliminarRegistro(id){
+  if(!confirm('¿Eliminar este registro?'))return;
+  if(DEMO_MODE){
+    var arr=DStore.mov().filter(function(m){return m.id!==id;});
+    DStore.saveMov(arr);_demoNotify();showToast('Eliminado');return;
+  }
+  db.collection('movimientos').doc(id).delete().then(function(){showToast('Eliminado');});
+}
+
 function openEdit(id){
   try{
   var found=window._recs[id]||null;
