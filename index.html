@@ -883,7 +883,7 @@ function filterH(){
       var eid=m.id;
       window['rec_'+eid]=m;
       r+='<button class="iconBtn" style="color:var(--bl);font-size:1.1rem" title="Editar" onclick="abrirEditar(this.getAttribute(\'data-eid\'))" data-eid="'+eid+'">✏️</button> ';
-      r+='<button class="iconBtn del" style="font-size:1.1rem" title="Eliminar" onclick="eliminarRegistro(this.getAttribute(\'data-eid\'))" data-eid="'+eid+'">🗑️</button>';
+      r+='<button class="iconBtn del" style="font-size:1.1rem" title="Eliminar" onclick="delMov(this.getAttribute(\'data-eid\'))" data-eid="'+eid+'">🗑️</button>';
     } else {
       r+='<span style="color:var(--mu)">—</span>';
     }
