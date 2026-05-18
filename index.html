@@ -291,7 +291,7 @@ const FIREBASE_CONFIG = {
   <!-- TOP BAR -->
   <div id="topbar">
     <div class="logo">Flujo<em>Caja</em></div>
-    <div class="topUser" id="topUserName"></div>
+    <div class="topUser" id="topUserName"></div><div id="connStatus" style="font-size:.72rem;color:var(--mu);white-space:nowrap">⏳</div>
     <button class="tbBtn" id="btnBack" style="display:none" onclick="goHome()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
       <span>Inicio</span>
@@ -409,6 +409,7 @@ let configData={
 };
 let movimientosData=[];
 let baicaoData=[];
+window._recs={};
 let _demoCbs=[];
 
 /* ══════════════════════════════════════════
@@ -418,13 +419,17 @@ function initFirebase(){
   try{
     if(typeof firebase==='undefined') throw new Error('SDK no cargó');
     if(FIREBASE_CONFIG.apiKey==='TU_API_KEY'||!FIREBASE_CONFIG.apiKey) throw new Error('Claves no configuradas');
-    // Evitar error de app duplicada en recargas
-    const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(FIREBASE_CONFIG);
-    db = firebase.firestore(app);
+    var app=firebase.apps.length?firebase.app():firebase.initializeApp(FIREBASE_CONFIG);
+    db=firebase.firestore(app);
+    // Mostrar estado conexión en topbar
+    var ind=document.getElementById('connStatus');
+    if(ind){ind.textContent='🟢 Firebase';ind.style.color='var(--gr)';}
     showToast('✓ Conectado a Firebase','ok');
   }catch(e){
     DEMO_MODE=true;
-    console.error('Firebase error:',e.message);
+    var ind=document.getElementById('connStatus');
+    if(ind){ind.textContent='🟡 Demo local';ind.style.color='var(--am)';}
+    console.error('Firebase:',e.message);
     showToast('⚠ Modo demo: '+e.message,'warn');
   }
 }
@@ -837,7 +842,7 @@ function subMovimientos(){
   }
   let q=db.collection('movimientos').orderBy('creadoEn','desc');
   if(currentUser.role==='operador') q=q.where('responsableId','==',currentUser.id);
-  const unsub=q.onSnapshot(snap=>{movimientosData=snap.docs.map(d=>({id:d.id,...d.data()}));filterH();});
+  const unsub=q.onSnapshot(snap=>{movimientosData=snap.docs.map(d=>({id:d.id,...d.data()}));movimientosData.forEach(function(r){window._recs[r.id]=r;});filterH();});
   listeners.push(unsub);
 }
 function filterH(){
@@ -875,8 +880,11 @@ function filterH(){
     }
     r+='</td><td style="white-space:nowrap">';
     if(canEdit){
-      r+='<button class="iconBtn btnEdit" data-id="'+esc(m.id)+'" onclick="openEdit(this.dataset.id)" style="color:var(--bl)" title="Editar">'+svgEdit()+'</button> ';
-      r+='<button class="iconBtn del btnDel" data-id="'+esc(m.id)+'" onclick="delMov(this.dataset.id)" title="Eliminar">'+svgDel()+'</button>';
+      window._recs[m.id]=m;
+      var sid=m.id.replace(/[^a-zA-Z0-9]/g,'');
+      window['_ed_'+sid]=m.id;
+      r+='<button class="iconBtn" onclick="window.openEdit(window[\'_ed_'+sid+'\'])" style="color:var(--bl)" title="Editar">'+svgEdit()+'</button> ';
+      r+='<button class="iconBtn del" onclick="window.delMov(window[\'_ed_'+sid+'\'])" title="Eliminar">'+svgDel()+'</button>';
     } else {
       r+='<span style="color:var(--mu)">—</span>';
     }
@@ -907,10 +915,9 @@ let editingId=null;
 let editFile=null;
 function openEdit(id){
   try{
-  var found=null;
-  for(var i=0;i<movimientosData.length;i++){if(movimientosData[i].id===id){found=movimientosData[i];break;}}
-  if(!found){for(var j=0;j<baicaoData.length;j++){if(baicaoData[j].id===id){found=baicaoData[j];break;}}}
-  if(!found){showToast('ID: '+id+' no encontrado en '+movimientosData.length+' registros','err');return;}
+  var found=window._recs[id]||null;
+  if(!found){for(var i=0;i<movimientosData.length;i++){if(movimientosData[i].id===id){found=movimientosData[i];break;}}}
+  if(!found){showToast('No encontrado. Recarga la página.','err');return;}
   editingId=id; editFile=null;
   var m=found;
   var catOpts='<option value="">Seleccionar...</option>';
@@ -1558,15 +1565,7 @@ function _generarFlujoReporte(movs,tipo){
 /* ══════════════════════════════════════════
    INIT
 ══════════════════════════════════════════ */
-// Registrar funciones globales
-window.openEdit=openEdit;
-window.delMov=delMov;
-window.abrirImg=abrirImg;
-window.replaceImg=replaceImg;
-window.closeEdit=closeEdit;
-window.saveEdit=saveEdit;
-window.marcar=marcar;
-
+window.openEdit=openEdit;window.delMov=delMov;window.abrirImg=abrirImg;window.replaceImg=replaceImg;window.closeEdit=closeEdit;window.saveEdit=saveEdit;window.marcar=marcar;
 window.addEventListener('load',()=>{
   initFirebase();
   renderLogin();
