@@ -380,7 +380,7 @@ const FIREBASE_CONFIG = {
 ══════════════════════════════════════════ */
 const USERS=[
   {id:'manuel',    name:'Manuel',            role:'supervisor',pass:'manuel2026',    color:'#f59e0b',bg:'rgba(245,158,11,.15)'},
-  {id:'luisobando',name:'Luis Obando',        role:'operador',  pass:'luisobando2026',color:'#34d399',bg:'rgba(52,211,153,.15)'},
+  {id:'luisobando',name:'Luis Ovando',        role:'operador',  pass:'luisobando2026',color:'#34d399',bg:'rgba(52,211,153,.15)'},
   {id:'jonnathan', name:'Jonnathan Palacios', role:'supervisor',pass:'jonnathan2026', color:'#60a5fa',bg:'rgba(96,165,250,.15)'},
   {id:'fernando',  name:'Fernando Guzmán',    role:'supervisor',pass:'fernando2026',  color:'#a78bfa',bg:'rgba(167,139,250,.15)'},
 ];
@@ -876,7 +876,7 @@ function filterH(){
     r+='<td class="desc" title="'+esc(m.descripcion)+'">'+esc(m.descripcion||'—')+'</td>';
     r+='<td>';
     if(m.imagenURL){
-      r+='<button class="iconBtn eye btnImg" data-id="'+esc(m.id)+'" title="Ver comprobante">'+svgEye()+' Ver</button>';
+      r+='<button class="iconBtn eye btnImg" data-id="'+esc(m.id)+'" onclick="abrirImg(this.dataset.id)" title="Ver comprobante">'+svgEye()+' Ver</button>';
     } else {
       r+='<span style="color:var(--mu);font-size:.78rem">Sin imagen</span>';
     }
@@ -907,11 +907,9 @@ function delMov(id){
 // Event delegation para la tabla de historial
 document.addEventListener('click',function(e){
   var editBtn=e.target.closest('.btnEdit');
-  if(editBtn){openEdit(editBtn.dataset.id);return;}
+  if(editBtn&&!editBtn.hasAttribute('onclick')){openEdit(editBtn.dataset.id);return;}
   var delBtn=e.target.closest('.btnDel');
-  if(delBtn){delMov(delBtn.dataset.id);return;}
-  var imgBtn=e.target.closest('.btnImg');
-  if(imgBtn){abrirImg(imgBtn.dataset.id);return;}
+  if(delBtn&&!delBtn.hasAttribute('onclick')){delMov(delBtn.dataset.id);return;}
 });
 
 /* ══════════════════════════════════════════
@@ -1441,6 +1439,7 @@ function pdfTable(doc,head,rows,footText,startY){
 }
 
 function reportHistorialPDF(){
+  if(!window.jspdf){showToast("Librería PDF no cargó, recarga la página","err");return;}
   if(!DEMO_MODE&&db&&movimientosData.length===0){showToast('Cargando datos...','warn');return;}
   const data=getFilteredH();
   if(!data.length){showToast('Sin datos para exportar','err');return;}
@@ -1529,6 +1528,7 @@ function reportHistorialXLS(){
 
 
 function reportBaicaoPDF(){
+  if(!window.jspdf){showToast("Librería PDF no cargó, recarga la página","err");return;}
   const data=getFilteredB();
   if(!data.length){showToast('Sin datos para exportar','err');return;}
   let total=0;
@@ -1606,6 +1606,7 @@ function reportBaicaoXLS(){
 
 /* ── FLUJO PDF ── */
 function reportFlujoPDF(){
+  if(!window.jspdf){showToast("Librería PDF no cargó, recarga la página","err");return;}
   const movs=DEMO_MODE?DStore.mov():(()=>{
     if(!db){showToast('Sin conexión','err');return null;}
     reportFlujoConFirebase('pdf'); return null;
