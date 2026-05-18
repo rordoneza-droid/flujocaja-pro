@@ -16,6 +16,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -1515,6 +1516,130 @@ function reportHistorialPDF(){
 }
 
 
+/* ══ EXCELJS HELPER ══ */
+function xlsColor(argb){return {type:'pattern',pattern:'solid',fgColor:{argb:argb}};}
+function xlsFont(argb,bold,size){return {color:{argb:argb},bold:!!bold,size:size||10,name:'Calibri'};}
+function xlsBorder(){return {top:{style:'thin',color:{argb:'FFD1D5DB'}},left:{style:'thin',color:{argb:'FFD1D5DB'}},bottom:{style:'thin',color:{argb:'FFD1D5DB'}},right:{style:'thin',color:{argb:'FFD1D5DB'}}};}
+
+async function generarExcel(config){
+  // config: {titulo, subtitulo, sheets:[{nombre, columnas:[{header,key,width}], filas, resumen}]}
+  const wb=new ExcelJS.Workbook();
+  wb.creator='FlujoCaja Pro';
+  wb.created=new Date();
+
+  config.sheets.forEach(function(sheetCfg){
+    const ws=wb.addWorksheet(sheetCfg.nombre,{views:[{state:'frozen',ySplit:5}]});
+
+    // Anchos de columna
+    ws.columns=sheetCfg.columnas.map(function(c){return {header:c.header,key:c.key,width:c.width||15};});
+
+    // Fila 1: Título principal
+    ws.mergeCells(1,1,1,sheetCfg.columnas.length);
+    var t1=ws.getCell(1,1);
+    t1.value='FlujoCaja Pro — '+config.titulo;
+    t1.fill=xlsColor('FF0F1422');
+    t1.font=xlsFont('FFF5A428',true,14);
+    t1.alignment={vertical:'middle',horizontal:'center'};
+    ws.getRow(1).height=28;
+
+    // Fila 2: Subtítulo
+    ws.mergeCells(2,1,2,sheetCfg.columnas.length);
+    var t2=ws.getCell(2,1);
+    t2.value=config.subtitulo||'';
+    t2.fill=xlsColor('FF141928');
+    t2.font=xlsFont('FFB4BDD0',false,9);
+    t2.alignment={vertical:'middle',horizontal:'center'};
+    ws.getRow(2).height=18;
+
+    // Fila 3: Fecha generado
+    ws.mergeCells(3,1,3,sheetCfg.columnas.length);
+    var t3=ws.getCell(3,1);
+    t3.value='Generado: '+new Date().toLocaleString('es-MX');
+    t3.fill=xlsColor('FF141928');
+    t3.font=xlsFont('FF6B7899',false,8);
+    t3.alignment={vertical:'middle',horizontal:'center'};
+    ws.getRow(3).height=16;
+
+    // Fila 4: vacía
+    ws.mergeCells(4,1,4,sheetCfg.columnas.length);
+    ws.getRow(4).getCell(1).fill=xlsColor('FF0F1422');
+    ws.getRow(4).height=6;
+
+    // Fila 5: Headers
+    var hRow=ws.getRow(5);
+    sheetCfg.columnas.forEach(function(col,i){
+      var cell=hRow.getCell(i+1);
+      cell.value=col.header.toUpperCase();
+      cell.fill=xlsColor('FF1E2840');
+      cell.font=xlsFont('FFF5A428',true,9);
+      cell.border=xlsBorder();
+      cell.alignment={vertical:'middle',horizontal:'center'};
+    });
+    hRow.height=22;
+
+    // Filas de datos
+    sheetCfg.filas.forEach(function(row,ri){
+      var dRow=ws.getRow(6+ri);
+      var isAlt=ri%2===1;
+      row.forEach(function(val,ci){
+        var cell=dRow.getCell(ci+1);
+        cell.value=val;
+        cell.fill=xlsColor(isAlt?'FFF8FAFC':'FFFFFFFF');
+        cell.border=xlsBorder();
+        // Color especial para importes
+        var colKey=sheetCfg.columnas[ci]?sheetCfg.columnas[ci].key:'';
+        if(colKey==='importe'||colKey==='ingreso'||colKey==='egreso'||colKey==='saldo'){
+          cell.numFmt='"$"#,##0.00';
+          var num=typeof val==='number'?val:0;
+          if(colKey==='ingreso'||num>0) cell.font=xlsFont('FF16A34A',false,9);
+          else if(colKey==='egreso'||num<0) cell.font=xlsFont('FFDC2626',false,9);
+          else cell.font=xlsFont('FF374151',false,9);
+        } else if(colKey==='estado'){
+          cell.font=xlsFont(val&&val.toString().includes('Enviado')?'FF16A34A':'FFD97706',false,9);
+        } else {
+          cell.font=xlsFont('FF374151',false,9);
+        }
+        cell.alignment={vertical:'middle',wrapText:true};
+      });
+      dRow.height=18;
+    });
+
+    // Fila vacía separador
+    var sepRow=ws.getRow(6+sheetCfg.filas.length);
+    ws.mergeCells(6+sheetCfg.filas.length,1,6+sheetCfg.filas.length,sheetCfg.columnas.length);
+    sepRow.height=8;
+
+    // Filas de resumen
+    if(sheetCfg.resumen){
+      sheetCfg.resumen.forEach(function(res,ri){
+        var rRow=ws.getRow(7+sheetCfg.filas.length+ri);
+        ws.mergeCells(7+sheetCfg.filas.length+ri,1,7+sheetCfg.filas.length+ri,sheetCfg.columnas.length-2);
+        rRow.getCell(1).value=res.label;
+        rRow.getCell(1).font=xlsFont('FF374151',true,9);
+        rRow.getCell(1).fill=xlsColor('FFF1F5F9');
+        var vCell=rRow.getCell(sheetCfg.columnas.length-1);
+        vCell.value=res.value;
+        vCell.numFmt='"$"#,##0.00';
+        var col=res.color||'FF374151';
+        vCell.font=xlsFont(col,true,10);
+        vCell.fill=xlsColor('FFF1F5F9');
+        vCell.border=xlsBorder();
+        rRow.height=20;
+      });
+    }
+  });
+
+  // Descargar
+  var buf=await wb.xlsx.writeBuffer();
+  var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url; a.download=config.filename||'reporte.xlsx';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function xlsStyle(ws,headerRow,totalRows,cols){
   // Esto aplica anchos de columna
   if(cols) ws['!cols']=cols;
@@ -1522,51 +1647,60 @@ function xlsStyle(ws,headerRow,totalRows,cols){
   if(!ws['!merges']) ws['!merges']=[];
 }
 
-function reportHistorialXLS(){
+async function reportHistorialXLS(){
+  if(typeof ExcelJS==='undefined'){showToast('ExcelJS no cargó — recarga','err');return;}
   const data=getFilteredH();
   if(!data.length){showToast('Sin datos','err');return;}
-  const wb=XLSX.utils.book_new();
+  showToast('Generando Excel...','ok');
   let ti=0,te=0;
-  // Header info
-  const wsData=[
-    ['FLUJOCAJA PRO — REPORTE DE REGISTROS','','','','','','',''],
-    ['Período: '+rFecha(),'','','','','','',''],
-    ['Generado: '+new Date().toLocaleString('es-MX'),'','','','','','',''],
-    ['','','','','','','',''],
-    ['TIPO','CATEGORÍA','FECHA','IMPORTE','MÉTODO','RESPONSABLE','DESCRIPCIÓN','COMPROBANTE'],
-  ];
-  data.forEach(function(m){
+  const filas=data.map(function(m){
     const imp=+m.importe||0;
     if(m.tipo==='ingreso') ti+=imp; else te+=imp;
-    var imgCell='Sin comprobante';
-    if(m.imagenURL){
-      imgCell=m.imagenURL.startsWith('http')?{t:'s',v:'Ver comprobante',l:{Target:m.imagenURL}}:'Con imagen';
-    }
-    wsData.push([
-      m.tipo==='ingreso'?'Ingreso':'Egreso',
-      m.categoria||'', m.fecha||'',
-      (m.tipo==='ingreso'?1:-1)*(+m.importe||0),
-      m.metodoPago||'', m.responsable||'',
-      m.descripcion||'', imgCell
-    ]);
+    return[
+      m.tipo==='ingreso'?'↑ Ingreso':'↓ Egreso',
+      m.categoria||'—', m.fecha||'—',
+      (m.tipo==='ingreso'?1:-1)*imp,
+      m.metodoPago||'—', m.responsable||'—',
+      m.descripcion||'',
+      m.imagenURL?(m.imagenURL.startsWith('http')?'Ver comprobante':'Con imagen'):'Sin comprobante'
+    ];
   });
-  wsData.push(['','','','','','','','']);
-  wsData.push(['RESUMEN','','','','','','','']);
-  wsData.push(['Total Ingresos:','','','ti','','','','']);
-  wsData.push(['Total Egresos:','','',-te,'','','','']);
-  wsData.push(['Saldo:','','',(ti-te),'','','','']);
-
-  const ws=XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols']=[{wch:12},{wch:18},{wch:12},{wch:14},{wch:14},{wch:18},{wch:35},{wch:22}];
-  ws['!merges']=[
-    {s:{r:0,c:0},e:{r:0,c:7}},
-    {s:{r:1,c:0},e:{r:1,c:7}},
-    {s:{r:2,c:0},e:{r:2,c:7}},
-  ];
-  // Reemplazar 'ti' con el valor real
-  wsData[wsData.length-3][3]=ti;
-  XLSX.utils.book_append_sheet(wb,ws,'Registros');
-  XLSX.writeFile(wb,'FlujoCaja_Registros_'+today()+'.xlsx');
+  // Desglose por método
+  const byM={};
+  data.forEach(function(m){
+    const k=m.metodoPago||'Sin método';
+    if(!byM[k]) byM[k]={ing:0,egr:0};
+    if(m.tipo==='ingreso') byM[k].ing+=+m.importe||0;
+    else byM[k].egr+=+m.importe||0;
+  });
+  const resumen=[
+    {label:'TOTAL INGRESOS',value:ti,color:'FF16A34A'},
+    {label:'TOTAL EGRESOS',value:-te,color:'FFDC2626'},
+    {label:'SALDO',value:ti-te,color:ti-te>=0?'FF16A34A':'FFDC2626'},
+    {label:'','value':''},
+  ].concat(Object.keys(byM).map(function(k){
+    return {label:k+' — Ingresos: $'+byM[k].ing.toFixed(2)+' | Egresos: $'+byM[k].egr.toFixed(2),value:byM[k].ing-byM[k].egr,color:'FF374151'};
+  }));
+  await generarExcel({
+    titulo:'TODOS LOS REGISTROS',
+    subtitulo:'Período: '+rFecha(),
+    filename:'FlujoCaja_Registros_'+today()+'.xlsx',
+    sheets:[{
+      nombre:'Registros',
+      columnas:[
+        {header:'Tipo',key:'tipo',width:12},
+        {header:'Categoría',key:'cat',width:20},
+        {header:'Fecha',key:'fecha',width:12},
+        {header:'Importe',key:'importe',width:14},
+        {header:'Método',key:'metodo',width:14},
+        {header:'Responsable',key:'resp',width:20},
+        {header:'Descripción',key:'desc',width:35},
+        {header:'Comprobante',key:'comp',width:18},
+      ],
+      filas:filas,
+      resumen:resumen,
+    }]
+  });
   showToast('📊 Excel descargado ✓');
 }
 
@@ -1612,51 +1746,61 @@ function reportBaicaoPDF(){
 }
 
 
-function reportBaicaoXLS(){
+async function reportBaicaoXLS(){
+  if(typeof ExcelJS==='undefined'){showToast('ExcelJS no cargó — recarga','err');return;}
   const data=getFilteredB();
   if(!data.length){showToast('Sin datos','err');return;}
-  const wb=XLSX.utils.book_new();
+  showToast('Generando Excel...','ok');
   let total=0;
-  const wsData=[
-    ['FLUJOCAJA PRO — VISTA BAICAO','','','','','','',''],
-    ['Período: '+rFecha(),'','','','','','',''],
-    ['Generado: '+new Date().toLocaleString('es-MX'),'','','','','','',''],
-    ['','','','','','','',''],
-    ['ESTADO','CATEGORÍA','FECHA','IMPORTE','MÉTODO DE PAGO','RESPONSABLE','DESCRIPCIÓN','COMPROBANTE'],
-  ];
-  data.forEach(function(m){
+  const filas=data.map(function(m){
     const imp=+m.importe||0; total+=imp;
-    var imgCell='Sin comprobante';
-    if(m.imagenURL){
-      imgCell=m.imagenURL.startsWith('http')?{t:'s',v:'Ver comprobante',l:{Target:m.imagenURL}}:'Con imagen';
-    }
-    wsData.push([
+    return[
       m.baicao?'✓ Enviado':'⏳ Pendiente',
-      m.categoria||'', m.fecha||'',
-      -imp, m.metodoPago||'', m.responsable||'',
-      m.descripcion||'', imgCell
-    ]);
+      m.categoria||'—', m.fecha||'—',
+      -imp,
+      m.metodoPago||'—', m.responsable||'—',
+      m.descripcion||'',
+      m.imagenURL?(m.imagenURL.startsWith('http')?'Ver comprobante':'Con imagen'):'Sin comprobante'
+    ];
   });
-  wsData.push(['','','','','','','','']);
-  wsData.push(['RESUMEN','','','','','','','']);
-  wsData.push(['Total egresos:','','',total,'','','','']);
-  wsData.push(['Enviados al Baicao:','','',data.filter(function(m){return m.baicao;}).length,'','','','']);
-  wsData.push(['Pendientes:','','',data.filter(function(m){return !m.baicao;}).length,'','','','']);
-
-  const ws=XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols']=[{wch:14},{wch:20},{wch:12},{wch:14},{wch:16},{wch:20},{wch:35},{wch:22}];
-  ws['!merges']=[
-    {s:{r:0,c:0},e:{r:0,c:7}},
-    {s:{r:1,c:0},e:{r:1,c:7}},
-    {s:{r:2,c:0},e:{r:2,c:7}},
-  ];
-  XLSX.utils.book_append_sheet(wb,ws,'Vista Baicao');
-  XLSX.writeFile(wb,'FlujoCaja_Baicao_'+today()+'.xlsx');
+  const byM={};
+  data.forEach(function(m){
+    const k=m.metodoPago||'Sin método';
+    if(!byM[k]) byM[k]=0;
+    byM[k]+=+m.importe||0;
+  });
+  const resumen=[
+    {label:'TOTAL EGRESOS',value:-total,color:'FFDC2626'},
+    {label:'ENVIADOS AL BAICAO',value:data.filter(function(m){return m.baicao;}).length,color:'FF16A34A'},
+    {label:'PENDIENTES',value:data.filter(function(m){return !m.baicao;}).length,color:'FFD97706'},
+    {label:'','value':''},
+  ].concat(Object.keys(byM).map(function(k){
+    return {label:k,value:-byM[k],color:'FFDC2626'};
+  }));
+  await generarExcel({
+    titulo:'VISTA BAICAO — EGRESOS',
+    subtitulo:'Período: '+rFecha(),
+    filename:'FlujoCaja_Baicao_'+today()+'.xlsx',
+    sheets:[{
+      nombre:'Baicao',
+      columnas:[
+        {header:'Estado',key:'estado',width:14},
+        {header:'Categoría',key:'cat',width:20},
+        {header:'Fecha',key:'fecha',width:12},
+        {header:'Importe',key:'egreso',width:14},
+        {header:'Método',key:'metodo',width:14},
+        {header:'Responsable',key:'resp',width:20},
+        {header:'Descripción',key:'desc',width:35},
+        {header:'Comprobante',key:'comp',width:18},
+      ],
+      filas:filas,
+      resumen:resumen,
+    }]
+  });
   showToast('📊 Excel descargado ✓');
 }
 
 
-/* ── FLUJO PDF ── */
 function reportFlujoPDF(){
   if(!window.jspdf){showToast("Librería PDF no cargó, recarga la página","err");return;}
   const movs=DEMO_MODE?DStore.mov():(()=>{
