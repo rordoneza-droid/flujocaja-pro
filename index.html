@@ -1100,8 +1100,13 @@ function subBaicao(){
     const u=demoSub(d=>{baicaoData=d.filter(m=>m.tipo==='egreso');filterB();});
     listeners.push(u);return;
   }
-  const u=db.collection('movimientos').where('tipo','==','egreso').orderBy('creadoEn','desc')
-    .onSnapshot(s=>{baicaoData=s.docs.map(d=>({id:d.id,...d.data()}));filterB();});
+  const u=db.collection('movimientos')
+    .onSnapshot(s=>{
+      baicaoData=s.docs.map(d=>({id:d.id,...d.data()}))
+        .filter(m=>m.tipo==='egreso')
+        .sort((a,b)=>(b.fecha||'')>(a.fecha||'')?1:-1);
+      filterB();
+    });
   listeners.push(u);
 }
 function filterB(){
@@ -1114,19 +1119,26 @@ function filterB(){
   if(hasta) data=data.filter(m=>m.fecha<=hasta);
   const tb=document.getElementById('bBody');if(!tb)return;
   if(!data.length){tb.innerHTML=`<tr class="emptyRow"><td colspan="9">Sin egresos con ese filtro</td></tr>`;return;}
-  tb.innerHTML=data.map(m=>`<tr>
-    <td><span class="badge ${m.baicao?'ok':'pe'}">${m.baicao?'✓ Enviado':'⏳ Pendiente'}</span></td>
-    <td>${m.categoria||'—'}</td><td>${m.fecha||'—'}</td>
-    <td class="amt neg">−$${num(m.importe)}</td>
-    <td>${m.metodoPago||'—'}</td><td>${m.responsable||'—'}</td>
-    <td class="desc" title="${m.descripcion||''}">${m.descripcion||'—'}</td>
-    <td>${m.imagenURL?`<button class="iconBtn eye" onclick="openImg('${m.imagenURL}')">${svgEye()} Ver</button>`:'<span style="color:var(--mu);font-size:.78rem">—</span>'}</td>
-    <td>
-      ${!m.baicao
-        ?`<button class="iconBtn chk" onclick="marcar('${m.id}',true)" style="border:1px solid var(--grbo);border-radius:var(--r);padding:4px 9px">${svgOk()} Marcar</button>`
-        :`<button class="iconBtn undo" onclick="marcar('${m.id}',false)" style="border:1px solid var(--bo);border-radius:var(--r);padding:4px 9px">↩ Desmarcar</button>`}
-    </td>
-  </tr>`).join('');
+  tb.innerHTML=data.map(function(m){
+    window['rec_'+m.id]=m;
+    var eid=m.id;
+    var r='<tr>';
+    r+='<td><span class="badge '+(m.baicao?'ok':'pe')+'">'+(m.baicao?'✓ Enviado':'⏳ Pendiente')+'</span></td>';
+    r+='<td>'+esc(m.categoria||'—')+'</td>';
+    r+='<td>'+esc(m.fecha||'—')+'</td>';
+    r+='<td class="amt neg">−$'+num(m.importe)+'</td>';
+    r+='<td>'+esc(m.metodoPago||'—')+'</td>';
+    r+='<td>'+esc(m.responsable||'—')+'</td>';
+    r+='<td class="desc" title="'+esc(m.descripcion)+'">'+esc(m.descripcion||'—')+'</td>';
+    r+='<td>'+(m.imagenURL
+      ?'<button class="iconBtn eye" style="font-size:1rem" onclick="abrirImg(this.getAttribute(\'data-eid\'))" data-eid="'+eid+'" title="Ver comprobante">👁 Ver</button>'
+      :'<span style="color:var(--mu);font-size:.78rem">Sin imagen</span>')+'</td>';
+    r+='<td>'+(!m.baicao
+      ?'<button class="iconBtn chk" onclick="marcar(this.getAttribute(\'data-eid\'),true)" data-eid="'+eid+'" style="border:1px solid var(--grbo);border-radius:var(--r);padding:4px 9px">'+svgOk()+' Marcar</button>'
+      :'<button class="iconBtn undo" onclick="marcar(this.getAttribute(\'data-eid\'),false)" data-eid="'+eid+'" style="border:1px solid var(--bo);border-radius:var(--r);padding:4px 9px">↩ Desmarcar</button>')+'</td>';
+    r+='</tr>';
+    return r;
+  }).join('');
 }
 // Event delegation para baicao
 document.addEventListener('click',function(e){
@@ -1221,7 +1233,13 @@ function renderConfig(){
    IMAGEN ZOOM
 ══════════════════════════════════════════ */
 function abrirImg(id){
-  const m=[...movimientosData,...baicaoData].find(x=>x.id===id);
+  var m=window['rec_'+id]||null;
+  if(!m){
+    for(var i=0;i<movimientosData.length;i++){if(movimientosData[i].id===id){m=movimientosData[i];break;}}
+  }
+  if(!m){
+    for(var j=0;j<baicaoData.length;j++){if(baicaoData[j].id===id){m=baicaoData[j];break;}}
+  }
   if(m&&m.imagenURL) openImg(m.imagenURL);
   else showToast('Sin imagen disponible','err');
 }
@@ -1294,121 +1312,235 @@ function getFlujoData(){
   const src=DEMO_MODE?DStore.mov():null;
   return src;
 }
-function newPDF(titulo,periodo){
+function newPDF(titulo,periodo,resumen){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
-  doc.setFillColor(9,12,22);
+  const W=297,H=210;
+  // ── Fondo general
+  doc.setFillColor(245,247,250);
+  doc.rect(0,0,W,H,'F');
+  // ── Header bar azul oscuro
+  doc.setFillColor(15,23,42);
+  doc.rect(0,0,W,32,'F');
+  // ── Acento dorado izquierdo
+  doc.setFillColor(245,164,40);
+  doc.rect(0,0,5,32,'F');
+  // ── Logo/Nombre empresa
   doc.setFont('helvetica','bold');
-  doc.setFontSize(16);doc.setTextColor(245,164,40);
-  doc.text('FlujoCaja Pro',14,14);
-  doc.setFontSize(11);doc.setTextColor(221,227,242);
-  doc.text(titulo,14,22);
-  doc.setFontSize(9);doc.setTextColor(102,115,143);
-  doc.text('Período: '+periodo,14,29);
-  doc.text('Generado: '+new Date().toLocaleString('es-MX'),14,34);
+  doc.setFontSize(18);
+  doc.setTextColor(255,255,255);
+  doc.text('FlujoCaja Pro',12,14);
+  doc.setFontSize(8);
+  doc.setTextColor(245,164,40);
+  doc.text('SISTEMA DE CONTROL DE FLUJO DE CAJA',12,21);
+  // ── Título reporte derecha
+  doc.setFontSize(14);
+  doc.setTextColor(255,255,255);
+  doc.text(titulo,W-10,12,{align:'right'});
+  doc.setFontSize(8);
+  doc.setTextColor(180,190,210);
+  doc.text('Período: '+periodo,W-10,19,{align:'right'});
+  doc.text('Generado: '+new Date().toLocaleString('es-MX'),W-10,25,{align:'right'});
+  // ── Línea separadora
+  doc.setDrawColor(245,164,40);
+  doc.setLineWidth(0.5);
+  doc.line(0,32,W,32);
+
+  var nextY=40;
+  // ── Caja resumen si viene
+  if(resumen){
+    var bx=8,by=35,bw=W-16,bh=18;
+    doc.setFillColor(255,255,255);
+    doc.setDrawColor(220,225,235);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(bx,by,bw,bh,2,2,'FD');
+    // Ingresos
+    doc.setFillColor(34,197,94);
+    doc.roundedRect(bx+4,by+3,3,12,1,1,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(100,120,140);
+    doc.text('TOTAL INGRESOS',bx+10,by+7.5);
+    doc.setFontSize(11);doc.setTextColor(34,197,94);
+    doc.text('+$'+Number(resumen.ti||0).toFixed(2),bx+10,by+14);
+    // Egresos
+    doc.setFillColor(239,68,68);
+    doc.roundedRect(bx+70,by+3,3,12,1,1,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(100,120,140);
+    doc.text('TOTAL EGRESOS',bx+76,by+7.5);
+    doc.setFontSize(11);doc.setTextColor(239,68,68);
+    doc.text('-$'+Number(resumen.te||0).toFixed(2),bx+76,by+14);
+    // Saldo
+    var sal=(resumen.ti||0)-(resumen.te||0);
+    doc.setFillColor(245,164,40);
+    doc.roundedRect(bx+140,by+3,3,12,1,1,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(100,120,140);
+    doc.text('SALDO',bx+146,by+7.5);
+    doc.setFontSize(11);doc.setTextColor(sal>=0?[34,197,94]:[239,68,68]);
+    doc.text((sal>=0?'+':'')+' $'+Math.abs(sal).toFixed(2),bx+146,by+14);
+    nextY=58;
+  }
+  doc._nextY=nextY;
   return doc;
 }
 
 /* ── HISTORIAL PDF ── */
+function pdfTable(doc,head,rows,footText){
+  const startY=doc._nextY||50;
+  doc.autoTable({
+    startY:startY,
+    head:[head],
+    body:rows,
+    foot:footText?[[{content:footText,colSpan:head.length,styles:{fontStyle:'bold',textColor:[245,164,40],fillColor:[15,23,42],fontSize:8}}]]:undefined,
+    theme:'grid',
+    styles:{
+      fontSize:8,
+      cellPadding:{top:3,right:4,bottom:3,left:4},
+      textColor:[30,40,60],
+      lineColor:[210,215,225],
+      lineWidth:0.2,
+      font:'helvetica',
+      overflow:'linebreak',
+    },
+    headStyles:{
+      fillColor:[15,23,42],
+      textColor:[245,164,40],
+      fontStyle:'bold',
+      fontSize:7.5,
+      cellPadding:{top:4,right:4,bottom:4,left:4},
+      halign:'center',
+    },
+    alternateRowStyles:{fillColor:[248,250,252]},
+    bodyStyles:{fillColor:[255,255,255]},
+    footStyles:{fillColor:[15,23,42]},
+    columnStyles:{},
+    didDrawPage:function(d){
+      // Footer en cada página
+      const W=297,H=210;
+      doc.setFillColor(15,23,42);
+      doc.rect(0,H-8,W,8,'F');
+      doc.setFontSize(7);doc.setTextColor(180,190,210);
+      doc.text('FlujoCaja Pro — Reporte confidencial',8,H-3);
+      doc.text('Página '+d.pageNumber,W/2,H-3,{align:'center'});
+      doc.text(new Date().toLocaleDateString('es-MX'),W-8,H-3,{align:'right'});
+    }
+  });
+}
+
 function reportHistorialPDF(){
   if(!DEMO_MODE&&db&&movimientosData.length===0){showToast('Cargando datos...','warn');return;}
   const data=getFilteredH();
   if(!data.length){showToast('Sin datos para exportar','err');return;}
-  const doc=newPDF('Todos los Registros — Ingresos y Egresos',rFecha());
   let ti=0,te=0;
   const rows=data.map(m=>{
     const imp=+m.importe||0;
     if(m.tipo==='ingreso') ti+=imp; else te+=imp;
     return[
       m.tipo==='ingreso'?'↑ Ingreso':'↓ Egreso',
-      m.categoria||'—', m.fecha||'—',
+      m.categoria||'—',
+      m.fecha||'—',
       (m.tipo==='ingreso'?'+':'-')+'$'+imp.toFixed(2),
-      m.metodoPago||'—', m.responsable||'—',
-      (m.descripcion||'—').slice(0,40),
-      m.imagenURL?'✓ Con comprobante':'—'
+      m.metodoPago||'—',
+      m.responsable||'—',
+      (m.descripcion||'').substring(0,45),
+      m.imagenURL?'✓ Sí':'—'
     ];
   });
-  doc.autoTable({
-    startY:40,
-    head:[['Tipo','Categoría','Fecha','Importe','Método','Responsable','Descripción','Comprobante']],
-    body:rows,
-    styles:{fontSize:8,cellPadding:3,textColor:[221,227,242],fillColor:[15,20,34]},
-    headStyles:{fillColor:[21,28,47],textColor:[102,115,143],fontStyle:'bold'},
-    alternateRowStyles:{fillColor:[21,28,47]},
-    foot:[[{content:`Total Ingresos: +$${ti.toFixed(2)}   Total Egresos: -$${te.toFixed(2)}   Saldo: ${(ti-te)>=0?'+':''}$${(ti-te).toFixed(2)}`,colSpan:8,styles:{fontStyle:'bold',textColor:[245,164,40],fillColor:[9,12,22]}}]],
-    footStyles:{fillColor:[9,12,22]},
-  });
+  const doc=newPDF('TODOS LOS REGISTROS',rFecha(),{ti,te});
+  pdfTable(doc,
+    ['Tipo','Categoría','Fecha','Importe','Método','Responsable','Descripción','Comprobante'],
+    rows,
+    'Total registros: '+data.length+'   |   Ingresos: +$'+ti.toFixed(2)+'   |   Egresos: -$'+te.toFixed(2)+'   |   Saldo: '+(ti-te>=0?'+':'')+'$'+(ti-te).toFixed(2)
+  );
   doc.save('FlujoCaja_Registros_'+today()+'.pdf');
-  showToast('PDF descargado ✓');
+  showToast('📄 PDF descargado ✓');
 }
 
-/* ── HISTORIAL EXCEL ── */
+
+function xlsStyle(ws,headerRow,totalRows,cols){
+  // Esto aplica anchos de columna
+  if(cols) ws['!cols']=cols;
+  // Merge título
+  if(!ws['!merges']) ws['!merges']=[];
+}
+
 function reportHistorialXLS(){
   const data=getFilteredH();
-  if(!data.length){showToast('Sin datos para exportar','err');return;}
+  if(!data.length){showToast('Sin datos','err');return;}
   const wb=XLSX.utils.book_new();
-  const wsData=[
-    ['FlujoCaja Pro — Todos los Registros'],
-    ['Período: '+rFecha()],
-    ['Generado: '+new Date().toLocaleString('es-MX')],
-    [],
-    ['Tipo','Categoría','Fecha','Importe','Método de pago','Responsable','Descripción','Comprobante'],
-  ];
   let ti=0,te=0;
-  data.forEach(m=>{
+  // Header info
+  const wsData=[
+    ['FLUJOCAJA PRO — REPORTE DE REGISTROS','','','','','','',''],
+    ['Período: '+rFecha(),'','','','','','',''],
+    ['Generado: '+new Date().toLocaleString('es-MX'),'','','','','','',''],
+    ['','','','','','','',''],
+    ['TIPO','CATEGORÍA','FECHA','IMPORTE','MÉTODO','RESPONSABLE','DESCRIPCIÓN','COMPROBANTE'],
+  ];
+  data.forEach(function(m){
     const imp=+m.importe||0;
     if(m.tipo==='ingreso') ti+=imp; else te+=imp;
+    var imgCell='Sin comprobante';
+    if(m.imagenURL){
+      imgCell=m.imagenURL.startsWith('http')?{t:'s',v:'Ver comprobante',l:{Target:m.imagenURL}}:'Con imagen';
+    }
     wsData.push([
       m.tipo==='ingreso'?'Ingreso':'Egreso',
       m.categoria||'', m.fecha||'',
-      (m.tipo==='ingreso'?1:-1)*imp,
+      (m.tipo==='ingreso'?1:-1)*(+m.importe||0),
       m.metodoPago||'', m.responsable||'',
-      m.descripcion||'',
-      m.imagenURL?{t:'s',v:'Ver comprobante',l:{Target:m.imagenURL}}:'Sin comprobante'
+      m.descripcion||'', imgCell
     ]);
   });
-  wsData.push([]);
-  wsData.push(['','','','Total Ingresos:',ti,'','','']);
-  wsData.push(['','','','Total Egresos:',-te,'','','']);
-  wsData.push(['','','','Saldo:',(ti-te),'','','']);
+  wsData.push(['','','','','','','','']);
+  wsData.push(['RESUMEN','','','','','','','']);
+  wsData.push(['Total Ingresos:','','','ti','','','','']);
+  wsData.push(['Total Egresos:','','',-te,'','','','']);
+  wsData.push(['Saldo:','','',(ti-te),'','','','']);
+
   const ws=XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols']=[{wch:12},{wch:18},{wch:12},{wch:14},{wch:14},{wch:18},{wch:30},{wch:20}];
+  ws['!cols']=[{wch:12},{wch:18},{wch:12},{wch:14},{wch:14},{wch:18},{wch:35},{wch:22}];
+  ws['!merges']=[
+    {s:{r:0,c:0},e:{r:0,c:7}},
+    {s:{r:1,c:0},e:{r:1,c:7}},
+    {s:{r:2,c:0},e:{r:2,c:7}},
+  ];
+  // Reemplazar 'ti' con el valor real
+  wsData[wsData.length-3][3]=ti;
   XLSX.utils.book_append_sheet(wb,ws,'Registros');
   XLSX.writeFile(wb,'FlujoCaja_Registros_'+today()+'.xlsx');
-  showToast('Excel descargado ✓');
+  showToast('📊 Excel descargado ✓');
 }
 
-/* ── BAICAO PDF ── */
+
 function reportBaicaoPDF(){
   const data=getFilteredB();
   if(!data.length){showToast('Sin datos para exportar','err');return;}
-  const doc=newPDF('Vista Baicao — Egresos',rFecha());
   let total=0;
+  const pendientes=data.filter(m=>!m.baicao).length;
+  const enviados=data.filter(m=>m.baicao).length;
   const rows=data.map(m=>{
     const imp=+m.importe||0; total+=imp;
     return[
       m.baicao?'✓ Enviado':'⏳ Pendiente',
-      m.categoria||'—', m.fecha||'—',
+      m.categoria||'—',
+      m.fecha||'—',
       '-$'+imp.toFixed(2),
-      m.metodoPago||'—', m.responsable||'—',
-      (m.descripcion||'—').slice(0,40),
-      m.imagenURL?'✓ Con comprobante':'—'
+      m.metodoPago||'—',
+      m.responsable||'—',
+      (m.descripcion||'').substring(0,45),
+      m.imagenURL?'✓ Sí':'—'
     ];
   });
-  doc.autoTable({
-    startY:40,
-    head:[['Estado','Categoría','Fecha','Importe','Método','Responsable','Descripción','Comprobante']],
-    body:rows,
-    styles:{fontSize:8,cellPadding:3,textColor:[221,227,242],fillColor:[15,20,34]},
-    headStyles:{fillColor:[21,28,47],textColor:[102,115,143],fontStyle:'bold'},
-    alternateRowStyles:{fillColor:[21,28,47]},
-    foot:[[{content:`Total Egresos: $${total.toFixed(2)}   |   Registros: ${data.length}   |   Enviados: ${data.filter(m=>m.baicao).length}   Pendientes: ${data.filter(m=>!m.baicao).length}`,colSpan:8,styles:{fontStyle:'bold',textColor:[245,164,40],fillColor:[9,12,22]}}]],
-  });
+  const doc=newPDF('VISTA BAICAO — EGRESOS',rFecha(),{ti:0,te:total});
+  pdfTable(doc,
+    ['Estado','Categoría','Fecha','Importe','Método','Responsable','Descripción','Comprobante'],
+    rows,
+    'Total: $'+total.toFixed(2)+'   |   Registros: '+data.length+'   |   Enviados al Baicao: '+enviados+'   |   Pendientes: '+pendientes
+  );
   doc.save('FlujoCaja_Baicao_'+today()+'.pdf');
-  showToast('PDF descargado ✓');
+  showToast('📄 PDF descargado ✓');
 }
 
-/* ── BAICAO EXCEL ── */
+
 function reportBaicaoXLS(){
   const data=getFilteredB();
   if(!data.length){showToast('Sin datos para exportar','err');return;}
@@ -1423,12 +1555,16 @@ function reportBaicaoXLS(){
   let total=0;
   data.forEach(m=>{
     const imp=+m.importe||0; total+=imp;
+    var imgCell='Sin comprobante';
+    if(m.imagenURL){
+      if(m.imagenURL.startsWith('http')){imgCell={t:'s',v:'Ver comprobante',l:{Target:m.imagenURL}};}
+      else{imgCell='Con imagen (base64)';}
+    }
     wsData.push([
       m.baicao?'Enviado':'Pendiente',
       m.categoria||'', m.fecha||'',
       -imp, m.metodoPago||'', m.responsable||'',
-      m.descripcion||'',
-      m.imagenURL?{t:'s',v:'Ver comprobante',l:{Target:m.imagenURL}}:'Sin comprobante'
+      m.descripcion||'', imgCell
     ]);
   });
   wsData.push([]);
@@ -1444,13 +1580,15 @@ function reportBaicaoXLS(){
 
 /* ── FLUJO PDF ── */
 function reportFlujoPDF(){
-  const src=DEMO_MODE?DStore.mov():null;
-  if(DEMO_MODE&&!src){showToast('Sin datos','err');return;}
-  const doc=newPDF('Flujo de Caja — Resumen por Método de Pago','Todos los períodos');
+  const movs=DEMO_MODE?DStore.mov():(()=>{
+    if(!db){showToast('Sin conexión','err');return null;}
+    reportFlujoConFirebase('pdf'); return null;
+  })();
+  if(!DEMO_MODE) return;
+  if(!movs){showToast('Sin datos','err');return;}
   let ti=0,te=0;
   const byM={};
   configData.metodos.forEach(m=>{byM[m.id]={nombre:m.nombre,tipo:m.tipo,ing:0,egr:0};});
-  const movs=DEMO_MODE?DStore.mov():[];
   movs.forEach(m=>{
     if(!byM[m.metodoPagoId]) byM[m.metodoPagoId]={nombre:m.metodoPago||m.metodoPagoId,tipo:'banco',ing:0,egr:0};
     if(m.tipo==='ingreso'){byM[m.metodoPagoId].ing+=+m.importe||0;ti+=+m.importe||0;}
@@ -1460,24 +1598,14 @@ function reportFlujoPDF(){
     const s=m.ing-m.egr;
     return[m.nombre,m.tipo==='efectivo'?'Efectivo':'Banco','+$'+m.ing.toFixed(2),'-$'+m.egr.toFixed(2),(s>=0?'+':'')+'$'+s.toFixed(2)];
   });
-  doc.autoTable({
-    startY:40,
-    head:[['Método / Banco','Tipo','Ingresos','Egresos','Saldo']],
-    body:rows,
-    styles:{fontSize:9,cellPadding:4,textColor:[221,227,242],fillColor:[15,20,34]},
-    headStyles:{fillColor:[21,28,47],textColor:[102,115,143],fontStyle:'bold'},
-    alternateRowStyles:{fillColor:[21,28,47]},
-    foot:[[{content:`TOTALES`,styles:{fontStyle:'bold',textColor:[245,164,40]}},
-           {content:''},
-           {content:'+$'+ti.toFixed(2),styles:{textColor:[34,197,94],fontStyle:'bold'}},
-           {content:'-$'+te.toFixed(2),styles:{textColor:[248,113,113],fontStyle:'bold'}},
-           {content:(ti-te>=0?'+':'')+'$'+(ti-te).toFixed(2),styles:{textColor:[245,164,40],fontStyle:'bold'}}]],
-  });
+  const doc=newPDF('FLUJO DE CAJA — RESUMEN','Todos los períodos',{ti,te});
+  pdfTable(doc,['Método / Banco','Tipo','Ingresos','Egresos','Saldo'],rows,
+    'TOTALES   Ingresos: +$'+ti.toFixed(2)+'   Egresos: -$'+te.toFixed(2)+'   Saldo: '+(ti-te>=0?'+':'')+'$'+(ti-te).toFixed(2));
   doc.save('FlujoCaja_Resumen_'+today()+'.pdf');
-  showToast('PDF descargado ✓');
+  showToast('📄 PDF descargado ✓');
 }
 
-/* ── FLUJO EXCEL ── */
+
 function reportFlujoXLS(){
   const movs=DEMO_MODE?DStore.mov():[];
   const wb=XLSX.utils.book_new();
@@ -1513,7 +1641,7 @@ function reportFlujoXLS(){
       m.tipo==='ingreso'?'Ingreso':'Egreso',
       m.categoria||'',m.fecha||'',(m.tipo==='ingreso'?1:-1)*(+m.importe||0),
       m.metodoPago||'',m.responsable||'',m.descripcion||'',
-      m.imagenURL?{t:'s',v:'Ver comprobante',l:{Target:m.imagenURL}}:'Sin comprobante'
+      (m.imagenURL?(m.imagenURL.startsWith('http')?{t:'s',v:'Ver comprobante',l:{Target:m.imagenURL}}:'Con imagen'):'Sin comprobante')
     ]);
   });
   const ws2=XLSX.utils.aoa_to_sheet(ws2Data);
