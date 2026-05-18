@@ -832,27 +832,37 @@ function filterH(){
   if(hasta) data=data.filter(m=>m.fecha<=hasta);
   const tb=document.getElementById('hBody');if(!tb)return;
   if(!data.length){tb.innerHTML=`<tr class="emptyRow"><td colspan="9">Sin registros</td></tr>`;return;}
-  tb.innerHTML=data.map(m=>{
-    const canEdit=currentUser.role==='supervisor'||m.responsableId===currentUser.id;
-    return `<tr>
-    <td><span class="badge ${m.tipo==='ingreso'?'ing':'egr'}">${m.tipo==='ingreso'?'↑ Ingreso':'↓ Egreso'}</span></td>
-    <td>${m.categoria||'—'}</td><td>${m.fecha||'—'}</td>
-    <td class="amt ${m.tipo==='ingreso'?'pos':'neg'}">${m.tipo==='ingreso'?'+':'−'}$${num(m.importe)}</td>
-    <td>${m.metodoPago||'—'}</td><td>${m.responsable||'—'}</td>
-    <td class="desc" title="${m.descripcion||''}">${m.descripcion||'—'}</td>
-    <td>
-      ${m.imagenURL
-        ?`<button class="iconBtn eye" onclick="abrirImg('${m.id}')">${svgEye()} Ver</button>`
-        :'<span style="color:var(--mu);font-size:.78rem">Sin imagen</span>'}
-      ${canEdit?`<label for="replFile_${m.id}" class="iconBtn" style="color:var(--am);cursor:pointer" title="Subir/reemplazar imagen">
-        📎<input type="file" id="replFile_${m.id}" accept="image/*" style="display:none" onchange="replaceImg('${m.id}',this)">
-      </label>`:''}
-    </td>
-    <td style="white-space:nowrap">
-      ${canEdit?`<button class="iconBtn" style="color:var(--bl)" onclick="openEdit('${m.id}')" title="Editar">${svgEdit()}</button>
-      <button class="iconBtn del" onclick="delMov('${m.id}')" title="Eliminar">${svgDel()}</button>`:'—'}
-    </td>
-  </tr>`;
+  tb.innerHTML=data.map(function(m){
+    var ing=m.tipo==='ingreso';
+    var canEdit=currentUser.role==='supervisor'||m.responsableId===currentUser.id;
+    var r='<tr data-id="'+esc(m.id)+'">';
+    r+='<td><span class="badge '+(ing?'ing':'egr')+'">'+(ing?'↑ Ingreso':'↓ Egreso')+'</span></td>';
+    r+='<td>'+esc(m.categoria||'—')+'</td>';
+    r+='<td>'+esc(m.fecha||'—')+'</td>';
+    r+='<td class="amt '+(ing?'pos':'neg')+'">'+(ing?'+':'−')+'$'+num(m.importe)+'</td>';
+    r+='<td>'+esc(m.metodoPago||'—')+'</td>';
+    r+='<td>'+esc(m.responsable||'—')+'</td>';
+    r+='<td class="desc" title="'+esc(m.descripcion)+'">'+esc(m.descripcion||'—')+'</td>';
+    r+='<td>';
+    if(m.imagenURL){
+      r+='<button class="iconBtn eye btnImg" data-id="'+esc(m.id)+'" title="Ver comprobante">'+svgEye()+' Ver</button>';
+    } else {
+      r+='<span style="color:var(--mu);font-size:.78rem">Sin imagen</span>';
+    }
+    if(canEdit){
+      r+='<label class="iconBtn" style="color:var(--am);cursor:pointer" title="Cambiar imagen">📎';
+      r+='<input type="file" accept="image/*" style="display:none" data-id="'+esc(m.id)+'" class="replFileInput" onchange="replaceImg(this.dataset.id,this)">';
+      r+='</label>';
+    }
+    r+='</td><td style="white-space:nowrap">';
+    if(canEdit){
+      r+='<button class="iconBtn btnEdit" data-id="'+esc(m.id)+'" style="color:var(--bl)" title="Editar">'+svgEdit()+'</button> ';
+      r+='<button class="iconBtn del btnDel" data-id="'+esc(m.id)+'" title="Eliminar">'+svgDel()+'</button>';
+    } else {
+      r+='<span style="color:var(--mu)">—</span>';
+    }
+    r+='</td></tr>';
+    return r;
   }).join('');
 }
 function delMov(id){
@@ -860,6 +870,16 @@ function delMov(id){
   if(DEMO_MODE){const arr=DStore.mov().filter(m=>m.id!==id);DStore.saveMov(arr);demoNotify();showToast('Eliminado');return;}
   db.collection('movimientos').doc(id).delete().then(()=>showToast('Eliminado'));
 }
+
+// Event delegation para la tabla de historial
+document.addEventListener('click',function(e){
+  var editBtn=e.target.closest('.btnEdit');
+  if(editBtn){openEdit(editBtn.dataset.id);return;}
+  var delBtn=e.target.closest('.btnDel');
+  if(delBtn){delMov(delBtn.dataset.id);return;}
+  var imgBtn=e.target.closest('.btnImg');
+  if(imgBtn){abrirImg(imgBtn.dataset.id);return;}
+});
 
 /* ══════════════════════════════════════════
    EDITAR REGISTRO
@@ -1084,6 +1104,11 @@ function filterB(){
     </td>
   </tr>`).join('');
 }
+// Event delegation para baicao
+document.addEventListener('click',function(e){
+  var marcarBtn=e.target.closest('.btnMarcar');
+  if(marcarBtn){marcar(marcarBtn.dataset.id, marcarBtn.dataset.val==='true');return;}
+});
 function marcar(id,val){
   if(DEMO_MODE){
     const arr=DStore.mov();const m=arr.find(x=>x.id===id);
@@ -1189,6 +1214,9 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeImg();});
 /* ══════════════════════════════════════════
    HELPERS
 ══════════════════════════════════════════ */
+function esc(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');
+}
 function hexToRgb(hex){
   const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
   return r+','+g+','+b;
