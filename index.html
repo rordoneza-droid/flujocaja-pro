@@ -1238,7 +1238,6 @@ function renderConfig(){
    IMAGEN ZOOM
 ══════════════════════════════════════════ */
 function abrirImg(id){
-  showToast('Abriendo imagen: '+id.substring(0,8)+'...','ok');
   var m=window['rec_'+id]||null;
   if(!m){
     for(var i=0;i<movimientosData.length;i++){if(movimientosData[i].id===id){m=movimientosData[i];break;}}
@@ -1250,11 +1249,40 @@ function abrirImg(id){
   else showToast('Sin imagen disponible','err');
 }
 function openImg(url){
-  document.getElementById('imgModalSrc').src=url;
-  document.getElementById('imgModalOpen').href=url;
-  document.getElementById('imgModalDl').href=url;
-  document.getElementById('imgModal').classList.add('open');
+  try{
+    if(!url){showToast('Sin imagen en este registro','err');return;}
+    var prev=document.getElementById('imgVisorDyn');
+    if(prev) prev.remove();
+    var ov=document.createElement('div');
+    ov.id='imgVisorDyn';
+    ov.setAttribute('style','position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,.93);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;box-sizing:border-box');
+    var img=document.createElement('img');
+    img.setAttribute('src',url);
+    img.setAttribute('style','max-width:90vw;max-height:70vh;border-radius:10px;object-fit:contain;display:block');
+    var row=document.createElement('div');
+    row.setAttribute('style','display:flex;gap:10px;flex-wrap:wrap;justify-content:center');
+    var bNT=document.createElement('a');
+    bNT.setAttribute('href',url);bNT.setAttribute('target','_blank');
+    bNT.setAttribute('style','background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:10px 18px;font-size:.9rem;color:#fff;text-decoration:none;font-family:inherit');
+    bNT.textContent='↗ Nueva pestaña';
+    var bDl=document.createElement('a');
+    bDl.setAttribute('href',url);bDl.setAttribute('download','comprobante.jpg');bDl.setAttribute('target','_blank');
+    bDl.setAttribute('style','background:rgba(245,164,40,.25);border:1px solid rgba(245,164,40,.5);border-radius:8px;padding:10px 18px;font-size:.9rem;color:#f5a428;text-decoration:none;font-family:inherit');
+    bDl.textContent='⬇ Descargar';
+    var bX=document.createElement('button');
+    bX.setAttribute('style','background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:10px 18px;font-size:.9rem;color:#ccc;cursor:pointer;font-family:inherit');
+    bX.textContent='✕ Cerrar';
+    bX.onclick=function(){document.getElementById('imgVisorDyn').remove();};
+    row.appendChild(bNT);row.appendChild(bDl);row.appendChild(bX);
+    ov.appendChild(img);ov.appendChild(row);
+    ov.onclick=function(e){if(e.target===ov){ov.remove();}};
+    document.body.appendChild(ov);
+  }catch(err){
+    showToast('Error visor: '+err.message,'err');
+    console.error('openImg error:',err);
+  }
 }
+
 function closeImg(){
   var m=document.getElementById('imgModal');
   if(m){m.classList.remove('open');}
@@ -1456,6 +1484,31 @@ function reportHistorialPDF(){
     const doc=newPDF('TODOS LOS REGISTROS',rFecha(),{ti,te});
     pdfTable(doc,['Tipo','Categoría','Fecha','Importe','Método','Responsable','Descripción','Comprobante'],rows,
       'Registros: '+data.length+'  |  Ingresos: +$'+ti.toFixed(2)+'  |  Egresos: -$'+te.toFixed(2)+'  |  Saldo: '+(ti-te>=0?'+':'')+'$'+(ti-te).toFixed(2));
+    // Desglose por método de pago
+    var byM={};
+    data.forEach(function(m){
+      var k=m.metodoPago||'Sin método';
+      if(!byM[k]) byM[k]={ing:0,egr:0};
+      if(m.tipo==='ingreso') byM[k].ing+=+m.importe||0;
+      else byM[k].egr+=+m.importe||0;
+    });
+    var desRows=Object.keys(byM).map(function(k){
+      var s=byM[k].ing-byM[k].egr;
+      return[k,'+$'+byM[k].ing.toFixed(2),'-$'+byM[k].egr.toFixed(2),(s>=0?'+':'')+'$'+s.toFixed(2)];
+    });
+    var y2=doc.lastAutoTable?doc.lastAutoTable.finalY+10:120;
+    doc.setFontSize(9);doc.setTextColor(15,23,42);doc.setFont('helvetica','bold');
+    doc.text('DESGLOSE POR MÉTODO DE PAGO',14,y2);
+    doc.autoTable({
+      startY:y2+4,
+      head:[['Método / Banco','Ingresos','Egresos','Saldo']],
+      body:desRows,
+      theme:'grid',
+      styles:{fontSize:8,textColor:[30,40,60],cellPadding:3},
+      headStyles:{fillColor:[15,23,42],textColor:[245,164,40],fontStyle:'bold',fontSize:7.5},
+      alternateRowStyles:{fillColor:[248,250,252]},
+      margin:{left:14,right:14},
+    });
     doc.save('FlujoCaja_Registros_'+today()+'.pdf');
     showToast('📄 PDF descargado ✓');
   }catch(err){showToast('Error PDF: '+err.message,'err');console.error('PDF:',err);}
@@ -1533,6 +1586,26 @@ function reportBaicaoPDF(){
     const doc=newPDF('VISTA BAICAO — EGRESOS',rFecha(),{ti:0,te:total});
     pdfTable(doc,['Estado','Categoría','Fecha','Importe','Método','Responsable','Descripción','Comprobante'],rows,
       'Total: $'+total.toFixed(2)+'  |  Registros: '+data.length+'  |  Enviados: '+data.filter(m=>m.baicao).length+'  |  Pendientes: '+data.filter(m=>!m.baicao).length);
+    var byM2={};
+    data.forEach(function(m){
+      var k=m.metodoPago||'Sin método';
+      if(!byM2[k]) byM2[k]=0;
+      byM2[k]+=+m.importe||0;
+    });
+    var desRows2=Object.keys(byM2).map(function(k){return[k,'-$'+byM2[k].toFixed(2)];});
+    var y3=doc.lastAutoTable?doc.lastAutoTable.finalY+10:120;
+    doc.setFontSize(9);doc.setTextColor(15,23,42);doc.setFont('helvetica','bold');
+    doc.text('DESGLOSE POR MÉTODO DE PAGO',14,y3);
+    doc.autoTable({
+      startY:y3+4,
+      head:[['Método / Banco','Total Egresos']],
+      body:desRows2,
+      theme:'grid',
+      styles:{fontSize:8,textColor:[30,40,60],cellPadding:3},
+      headStyles:{fillColor:[15,23,42],textColor:[245,164,40],fontStyle:'bold'},
+      alternateRowStyles:{fillColor:[248,250,252]},
+      margin:{left:14,right:14},
+    });
     doc.save('FlujoCaja_Baicao_'+today()+'.pdf');
     showToast('📄 PDF descargado ✓');
   }catch(err){showToast('Error PDF: '+err.message,'err');console.error('PDF:',err);}
