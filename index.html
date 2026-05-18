@@ -340,38 +340,16 @@ const FIREBASE_CONFIG = {
 </div>
 
 <!-- EDIT MODAL -->
-<div id="editModal" style="position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9999;display:none;align-items:center;justify-content:center;padding:1rem">
-  <div style="background:#111827;border:1px solid rgba(255,255,255,.15);border-radius:16px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,.8)">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;border-bottom:1px solid rgba(255,255,255,.08)">
-      <span style="font-weight:700;font-size:1rem;color:#dde3f2">✏️ Editar registro</span>
-      <button id="btnCloseEdit" style="background:none;border:none;color:#6b7899;font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
+<div id="editModal" style="position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;display:none;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)">
+  <div style="background:var(--surf);border:1px solid var(--bo2);border-radius:var(--rx);width:100%;max-width:540px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.4rem;border-bottom:1px solid var(--bo);position:sticky;top:0;background:var(--surf);z-index:5">
+      <span style="font-weight:700;font-size:1rem">✏️ Editar registro</span>
+      <button onclick="closeEdit()" style="background:none;border:none;color:var(--mu);font-size:1.2rem;cursor:pointer">✕</button>
     </div>
-    <div style="padding:1.2rem">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-        <div><label style="display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:#6b7899;margin-bottom:5px;font-weight:600">Categoría</label>
-          <select id="eCat" style="width:100%;background:#161c2f;border:1px solid rgba(255,255,255,.13);border-radius:8px;padding:.6rem .8rem;color:#dde3f2;font-size:.9rem;font-family:inherit"></select></div>
-        <div><label style="display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:#6b7899;margin-bottom:5px;font-weight:600">Fecha</label>
-          <input type="date" id="eFecha" style="width:100%;background:#161c2f;border:1px solid rgba(255,255,255,.13);border-radius:8px;padding:.6rem .8rem;color:#dde3f2;font-size:.9rem;font-family:inherit"></div>
-        <div><label style="display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:#6b7899;margin-bottom:5px;font-weight:600">Importe</label>
-          <input type="number" id="eImporte" min="0" step="0.01" style="width:100%;background:#161c2f;border:1px solid rgba(255,255,255,.13);border-radius:8px;padding:.6rem .8rem;color:#dde3f2;font-size:.9rem;font-family:inherit"></div>
-        <div><label style="display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:#6b7899;margin-bottom:5px;font-weight:600">Método de pago</label>
-          <select id="eMetodo" style="width:100%;background:#161c2f;border:1px solid rgba(255,255,255,.13);border-radius:8px;padding:.6rem .8rem;color:#dde3f2;font-size:.9rem;font-family:inherit"></select></div>
-      </div>
-      <div style="margin-bottom:10px">
-        <label style="display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:#6b7899;margin-bottom:5px;font-weight:600">Descripción</label>
-        <textarea id="eDesc" rows="3" style="width:100%;background:#161c2f;border:1px solid rgba(255,255,255,.13);border-radius:8px;padding:.6rem .8rem;color:#dde3f2;font-size:.9rem;font-family:inherit;resize:vertical"></textarea>
-      </div>
-      <div>
-        <label style="display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:#6b7899;margin-bottom:5px;font-weight:600">Comprobante</label>
-        <div id="eImgActual" style="margin-bottom:8px"></div>
-        <label for="eFile" style="display:block;border:2px dashed rgba(255,255,255,.13);border-radius:8px;padding:.8rem;text-align:center;cursor:pointer;font-size:.82rem;color:#6b7899">📎 Cambiar imagen</label>
-        <input type="file" id="eFile" accept="image/*" style="display:none">
-        <div id="eImgNew" style="margin-top:8px"></div>
-      </div>
-    </div>
-    <div style="padding:.9rem 1.2rem;border-top:1px solid rgba(255,255,255,.08);display:flex;gap:10px;justify-content:flex-end">
-      <button id="btnCancelEdit" style="background:#161c2f;border:1px solid rgba(255,255,255,.13);color:#dde3f2;border-radius:8px;padding:.6rem 1.1rem;font-size:.88rem;cursor:pointer;font-family:inherit">Cancelar</button>
-      <button id="btnSaveEdit" style="background:#f5a428;color:#000;font-weight:700;border:none;border-radius:8px;padding:.6rem 1.3rem;font-size:.88rem;cursor:pointer;font-family:inherit">Guardar cambios</button>
+    <div class="mbody" style="padding:1.4rem"></div>
+    <div style="padding:1rem 1.4rem;border-top:1px solid var(--bo);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:var(--surf)">
+      <button class="btnSec" onclick="closeEdit()">Cancelar</button>
+      <button class="btnAcc" id="btnSaveEdit" onclick="saveEdit()">Guardar cambios</button>
     </div>
   </div>
 </div>
@@ -902,8 +880,11 @@ function filterH(){
     }
     r+='</td><td style="white-space:nowrap">';
     if(canEdit){
-      r+='<button class="iconBtn" style="color:var(--bl);font-size:1rem" title="Editar" onclick="editarRegistro(\''+m.id+'\')">✏️</button> ';
-      r+='<button class="iconBtn del" style="font-size:1rem" title="Eliminar" onclick="eliminarRegistro(\''+m.id+'\')">🗑️</button>';
+      window._recs[m.id]=m;
+      var sid=m.id.replace(/[^a-zA-Z0-9]/g,'');
+      window['_ed_'+sid]=m.id;
+      r+='<button class="iconBtn" onclick="window.openEdit(window[\'_ed_'+sid+'\'])" style="color:var(--bl)" title="Editar">'+svgEdit()+'</button> ';
+      r+='<button class="iconBtn del" onclick="window.delMov(window[\'_ed_'+sid+'\'])" title="Eliminar">'+svgDel()+'</button>';
     } else {
       r+='<span style="color:var(--mu)">—</span>';
     }
@@ -932,65 +913,6 @@ document.addEventListener('click',function(e){
 ══════════════════════════════════════════ */
 let editingId=null;
 let editFile=null;
-// Funciones de acceso directo desde botones
-function editarRegistro(id){
-  var m=null;
-  for(var i=0;i<movimientosData.length;i++){
-    if(movimientosData[i].id===id){m=movimientosData[i];break;}
-  }
-  if(!m){showToast('Registro no encontrado','err');return;}
-  editingId=id;
-  editFile=null;
-
-  // Llenar categorías
-  var cat=document.getElementById('eCat');
-  cat.innerHTML='<option value="">Seleccionar...</option>';
-  configData.categorias.forEach(function(c){
-    var o=document.createElement('option');
-    o.value=c.nombre; o.textContent=c.nombre;
-    if(c.nombre===m.categoria) o.selected=true;
-    cat.appendChild(o);
-  });
-
-  // Llenar métodos
-  var met=document.getElementById('eMetodo');
-  met.innerHTML='<option value="">Seleccionar...</option>';
-  configData.metodos.forEach(function(mt){
-    var o=document.createElement('option');
-    o.value=mt.id; o.textContent=mt.nombre;
-    if(mt.id===m.metodoPagoId) o.selected=true;
-    met.appendChild(o);
-  });
-
-  // Llenar campos
-  document.getElementById('eFecha').value=m.fecha||'';
-  document.getElementById('eImporte').value=m.importe||0;
-  document.getElementById('eDesc').value=m.descripcion||'';
-
-  // Imagen actual
-  var imgDiv=document.getElementById('eImgActual');
-  if(m.imagenURL){
-    imgDiv.innerHTML='<img src="'+m.imagenURL+'" style="max-width:100%;max-height:110px;border-radius:8px;display:block">';
-  } else {
-    imgDiv.innerHTML='<span style="color:#6b7899;font-size:.82rem">Sin imagen</span>';
-  }
-  document.getElementById('eImgNew').innerHTML='';
-  document.getElementById('eFile').value='';
-
-  // Mostrar modal
-  var modal=document.getElementById('editModal');
-  modal.style.display='flex';
-}
-
-function eliminarRegistro(id){
-  if(!confirm('¿Eliminar este registro?'))return;
-  if(DEMO_MODE){
-    var arr=DStore.mov().filter(function(m){return m.id!==id;});
-    DStore.saveMov(arr);_demoNotify();showToast('Eliminado');return;
-  }
-  db.collection('movimientos').doc(id).delete().then(function(){showToast('Eliminado');});
-}
-
 function openEdit(id){
   try{
   var found=window._recs[id]||null;
@@ -1023,12 +945,13 @@ function openEdit(id){
   modal.style.display='flex';
   }catch(err){showToast('Error al abrir editor: '+err.message,'err');console.error(err);}
 }
-function editPreviewFn(e){
-  var input=e&&e.target?e.target:document.getElementById('eFile');
+function editPreviewFn(input){
   editFile=input.files[0];if(!editFile)return;
-  var r=new FileReader();
-  r.onload=function(ev){
-    document.getElementById('eImgNew').innerHTML='<div style="margin-top:8px"><img src="'+ev.target.result+'" style="max-height:110px;border-radius:8px;border:1px solid rgba(34,197,94,.3)"><span style="font-size:.75rem;color:#22c55e;margin-left:8px">✓ Nueva imagen lista</span></div>';
+  const r=new FileReader();
+  r.onload=e=>{
+    document.getElementById('eImgNew').innerHTML=
+      `<div style="margin-top:8px"><img src="${e.target.result}" style="max-height:120px;border-radius:var(--r);border:1px solid var(--grbo)">
+      <span style="font-size:.75rem;color:var(--gr);margin-left:8px">Nueva imagen lista</span></div>`;
   };
   r.readAsDataURL(editFile);
 }
@@ -1063,7 +986,6 @@ function closeEdit(){
   document.getElementById('editModal').style.display='none';
   editingId=null;editFile=null;
 }
-window.closeEdit=closeEdit;
 
 /* Reemplazar imagen directo desde la tabla */
 async function replaceImg(id,input){
@@ -1643,12 +1565,6 @@ function _generarFlujoReporte(movs,tipo){
 /* ══════════════════════════════════════════
    INIT
 ══════════════════════════════════════════ */
-// Botones del modal de edición
-document.getElementById('btnCloseEdit').onclick=function(){document.getElementById('editModal').style.display='none';};
-document.getElementById('btnCancelEdit').onclick=function(){document.getElementById('editModal').style.display='none';};
-document.getElementById('btnSaveEdit').onclick=saveEdit;
-document.getElementById('eFile').onchange=editPreviewFn;
-document.getElementById('editModal').addEventListener('click',function(e){if(e.target===this)this.style.display='none';});
 window.openEdit=openEdit;window.delMov=delMov;window.abrirImg=abrirImg;window.replaceImg=replaceImg;window.closeEdit=closeEdit;window.saveEdit=saveEdit;window.marcar=marcar;
 window.addEventListener('load',()=>{
   initFirebase();
