@@ -377,13 +377,14 @@ const FIREBASE_CONFIG = {
 
 <script>
 /* ══════════════════════════════════════════
-   USUARIOS
+   USUARIOS ✓ CRISTINA AGREGADA
 ══════════════════════════════════════════ */
 const USERS=[
   {id:'manuel',    name:'Manuel',            role:'supervisor',pass:'manuel2026',    color:'#f59e0b',bg:'rgba(245,158,11,.15)'},
   {id:'luisobando',name:'Luis Ovando',        role:'operador',  pass:'luisobando2026',color:'#34d399',bg:'rgba(52,211,153,.15)'},
   {id:'jonnathan', name:'Jonnathan Palacios', role:'supervisor',pass:'jonnathan2026', color:'#60a5fa',bg:'rgba(96,165,250,.15)'},
   {id:'fernando',  name:'Fernando Guzmán',    role:'supervisor',pass:'fernando2026',  color:'#a78bfa',bg:'rgba(167,139,250,.15)'},
+  {id:'cristina',  name:'Cristina',          role:'supervisor',pass:'cris2026',      color:'#f43f5e',bg:'rgba(244,63,94,.15)'},
 ];
 
 const MODULES_OP=[
@@ -450,7 +451,7 @@ const DStore={
   saveCfg(d){localStorage.setItem('fcCfg',JSON.stringify(d))},
 };
 function demoNotify(){const d=DStore.mov();_demoCbs.forEach(cb=>cb(d));}
-function demoSub(cb){_demoCbs.push(cb);cb(DStore.mov());return()=>{_demoCbs=_demoCbs.filter(x=>x!==cb)};}
+function demoSub(cb){_demoCbs.push(cb);cb(DStore.mov());return()=>{_demoCbs=_demoCbs.filter(x=>x!==cb);};}
 
 /* ══════════════════════════════════════════
    CONFIGURACIÓN
@@ -1821,11 +1822,10 @@ function reportFlujoPDF(){
     const s=m.ing-m.egr;
     return[m.nombre,m.tipo==='efectivo'?'Efectivo':'Banco','+$'+m.ing.toFixed(2),'-$'+m.egr.toFixed(2),(s>=0?'+':'')+'$'+s.toFixed(2)];
   });
-  const doc=newPDF('FLUJO DE CAJA — RESUMEN','Todos los períodos',{ti,te});
-  pdfTable(doc,['Método / Banco','Tipo','Ingresos','Egresos','Saldo'],rows,
-    'TOTALES   Ingresos: +$'+ti.toFixed(2)+'   Egresos: -$'+te.toFixed(2)+'   Saldo: '+(ti-te>=0?'+':'')+'$'+(ti-te).toFixed(2));
+  const doc=newPDF('Flujo de Caja — Resumen por Método de Pago','Todos los períodos');
+  doc.autoTable({startY:40,head:[['Método / Banco','Tipo','Ingresos','Egresos','Saldo']],body:rows,styles:{fontSize:9,cellPadding:4,textColor:[221,227,242],fillColor:[15,20,34]},headStyles:{fillColor:[21,28,47],textColor:[102,115,143],fontStyle:'bold'},alternateRowStyles:{fillColor:[21,28,47]}});
   doc.save('FlujoCaja_Resumen_'+today()+'.pdf');
-  showToast('📄 PDF descargado ✓');
+  showToast('PDF descargado ✓');
 }
 
 
@@ -2067,7 +2067,7 @@ async function guardarEdicion(){
       var arr=DStore.mov();
       var idx=arr.findIndex(function(x){return x.id===editingId;});
       if(idx>=0) arr[idx]=Object.assign({},arr[idx],update);
-      DStore.saveMov(arr);_demoNotify();
+      DStore.saveMov(arr);demoNotify();
     } else {
       await db.collection('movimientos').doc(editingId).update(update);
     }
