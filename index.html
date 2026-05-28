@@ -377,14 +377,14 @@ const FIREBASE_CONFIG = {
 
 <script>
 /* ══════════════════════════════════════════
-   USUARIOS ✓ CRISTINA AGREGADA
+   USUARIOS
 ══════════════════════════════════════════ */
 const USERS=[
   {id:'manuel',    name:'Manuel',            role:'supervisor',pass:'manuel2026',    color:'#f59e0b',bg:'rgba(245,158,11,.15)'},
   {id:'luisobando',name:'Luis Ovando',        role:'operador',  pass:'luisobando2026',color:'#34d399',bg:'rgba(52,211,153,.15)'},
   {id:'jonnathan', name:'Jonnathan Palacios', role:'supervisor',pass:'jonnathan2026', color:'#60a5fa',bg:'rgba(96,165,250,.15)'},
   {id:'fernando',  name:'Fernando Guzmán',    role:'supervisor',pass:'fernando2026',  color:'#a78bfa',bg:'rgba(167,139,250,.15)'},
-  {id:'cristina',  name:'Cristina',          role:'supervisor',pass:'cris2026',      color:'#f43f5e',bg:'rgba(244,63,94,.15)'},
+  {id:'cristina',  name:'Cristina',           role:'supervisor',pass:'cris2026',      color:'#f472b6',bg:'rgba(244,114,182,.15)'},
 ];
 
 const MODULES_OP=[
@@ -430,7 +430,6 @@ function initFirebase(){
     if(FIREBASE_CONFIG.apiKey==='TU_API_KEY'||!FIREBASE_CONFIG.apiKey) throw new Error('Claves no configuradas');
     var app=firebase.apps.length?firebase.app():firebase.initializeApp(FIREBASE_CONFIG);
     db=firebase.firestore(app);
-    // Mostrar estado conexión en topbar
     var ind=document.getElementById('connStatus');
     if(ind){ind.textContent='🟢 Firebase';ind.style.color='var(--gr)';}
     showToast('✓ Conectado a Firebase','ok');
@@ -451,18 +450,14 @@ const DStore={
   saveCfg(d){localStorage.setItem('fcCfg',JSON.stringify(d))},
 };
 function demoNotify(){const d=DStore.mov();_demoCbs.forEach(cb=>cb(d));}
-function demoSub(cb){_demoCbs.push(cb);cb(DStore.mov());return()=>{_demoCbs=_demoCbs.filter(x=>x!==cb);};}
+function demoSub(cb){_demoCbs.push(cb);cb(DStore.mov());return()=>{_demoCbs=_demoCbs.filter(x=>x!==cb)};}
 
-/* ══════════════════════════════════════════
-   CONFIGURACIÓN
-══════════════════════════════════════════ */
 /* ══════════════════════════════════════════
    CONTRASEÑAS
 ══════════════════════════════════════════ */
-let passwords={};  // {userId: pass}
+let passwords={};
 
 function initPasswords(cb){
-  // Carga contraseñas desde Firestore, si no usa las hardcodeadas
   USERS.forEach(u=>passwords[u.id]=u.pass);
   if(DEMO_MODE){
     const saved=JSON.parse(localStorage.getItem('fcPass')||'{}');
@@ -482,7 +477,6 @@ function savePassToStore(){
 }
 function openPassModal(){
   const isSup=currentUser.role==='supervisor';
-  // Supervisores pueden resetear contraseña de cualquier usuario
   const supSection=document.getElementById('passSupSection');
   if(isSup){
     supSection.innerHTML=`<div class="frow">
@@ -508,14 +502,12 @@ async function savePass(){
   const nueva=document.getElementById('pNueva').value;
   const confirm=document.getElementById('pConfirm').value;
   const errEl=document.getElementById('passErr');
-  // Si cambia la suya propia, validar contraseña actual
   if(targetId===currentUser.id){
     if(actual!==passwords[currentUser.id]){errEl.textContent='Contraseña actual incorrecta';return;}
   }
   if(nueva.length<6){errEl.textContent='La nueva contraseña debe tener al menos 6 caracteres';return;}
   if(nueva!==confirm){errEl.textContent='Las contraseñas no coinciden';return;}
   passwords[targetId]=nueva;
-  // Si el usuario cambió su propia, actualizar currentUser
   if(targetId===currentUser.id) currentUser.pass=nueva;
   savePassToStore();
   const targetName=USERS.find(u=>u.id===targetId)?.name||'usuario';
@@ -906,7 +898,6 @@ function delMov(id){
   db.collection('movimientos').doc(id).delete().then(()=>showToast('Eliminado'));
 }
 
-// Event delegation para la tabla de historial
 document.addEventListener('click',function(e){
   var editBtn=e.target.closest('.btnEdit');
   if(editBtn&&!editBtn.hasAttribute('onclick')){openEdit(editBtn.dataset.id);return;}
@@ -993,7 +984,6 @@ function closeEdit(){
   editingId=null;editFile=null;
 }
 
-/* Reemplazar imagen directo desde la tabla */
 async function replaceImg(id,input){
   const file=input.files[0];if(!file)return;
   showToast('Comprimiendo y subiendo...','ok');
@@ -1147,7 +1137,6 @@ function filterB(){
     return r;
   }).join('');
 }
-// Event delegation para baicao
 document.addEventListener('click',function(e){
   var marcarBtn=e.target.closest('.btnMarcar');
   if(marcarBtn){marcar(marcarBtn.dataset.id, marcarBtn.dataset.val==='true');return;}
@@ -1360,16 +1349,12 @@ function newPDF(titulo,periodo,resumen){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
   const W=297,H=210;
-  // ── Fondo general
   doc.setFillColor(245,247,250);
   doc.rect(0,0,W,H,'F');
-  // ── Header bar azul oscuro
   doc.setFillColor(15,23,42);
   doc.rect(0,0,W,32,'F');
-  // ── Acento dorado izquierdo
   doc.setFillColor(245,164,40);
   doc.rect(0,0,5,32,'F');
-  // ── Logo/Nombre empresa
   doc.setFont('helvetica','bold');
   doc.setFontSize(18);
   doc.setTextColor(255,255,255);
@@ -1377,7 +1362,6 @@ function newPDF(titulo,periodo,resumen){
   doc.setFontSize(8);
   doc.setTextColor(245,164,40);
   doc.text('SISTEMA DE CONTROL DE FLUJO DE CAJA',12,21);
-  // ── Título reporte derecha
   doc.setFontSize(14);
   doc.setTextColor(255,255,255);
   doc.text(titulo,W-10,12,{align:'right'});
@@ -1385,34 +1369,29 @@ function newPDF(titulo,periodo,resumen){
   doc.setTextColor(180,190,210);
   doc.text('Período: '+periodo,W-10,19,{align:'right'});
   doc.text('Generado: '+new Date().toLocaleString('es-MX'),W-10,25,{align:'right'});
-  // ── Línea separadora
   doc.setDrawColor(245,164,40);
   doc.setLineWidth(0.5);
   doc.line(0,32,W,32);
 
   var nextY=40;
-  // ── Caja resumen si viene
   if(resumen){
     var bx=8,by=35,bw=W-16,bh=18;
     doc.setFillColor(255,255,255);
     doc.setDrawColor(220,225,235);
     doc.setLineWidth(0.3);
     doc.roundedRect(bx,by,bw,bh,2,2,'FD');
-    // Ingresos
     doc.setFillColor(34,197,94);
     doc.roundedRect(bx+4,by+3,3,12,1,1,'F');
     doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(100,120,140);
     doc.text('TOTAL INGRESOS',bx+10,by+7.5);
     doc.setFontSize(11);doc.setTextColor(34,197,94);
     doc.text('+$'+Number(resumen.ti||0).toFixed(2),bx+10,by+14);
-    // Egresos
     doc.setFillColor(239,68,68);
     doc.roundedRect(bx+70,by+3,3,12,1,1,'F');
     doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(100,120,140);
     doc.text('TOTAL EGRESOS',bx+76,by+7.5);
     doc.setFontSize(11);doc.setTextColor(239,68,68);
     doc.text('-$'+Number(resumen.te||0).toFixed(2),bx+76,by+14);
-    // Saldo
     var sal=(resumen.ti||0)-(resumen.te||0);
     doc.setFillColor(245,164,40);
     doc.roundedRect(bx+140,by+3,3,12,1,1,'F');
@@ -1426,7 +1405,6 @@ function newPDF(titulo,periodo,resumen){
   return doc;
 }
 
-/* ── HISTORIAL PDF ── */
 function pdfTable(doc,head,rows,footText,startY){
   startY=startY||doc._nextY||50;
   doc.autoTable({
@@ -1457,7 +1435,6 @@ function pdfTable(doc,head,rows,footText,startY){
     footStyles:{fillColor:[15,23,42]},
     columnStyles:{},
     didDrawPage:function(d){
-      // Footer en cada página
       const W=297,H=210;
       doc.setFillColor(15,23,42);
       doc.rect(0,H-8,W,8,'F');
@@ -1486,7 +1463,6 @@ function reportHistorialPDF(){
     const doc=newPDF('TODOS LOS REGISTROS',rFecha(),{ti,te});
     pdfTable(doc,['Tipo','Categoría','Fecha','Importe','Método','Responsable','Descripción','Comprobante'],rows,
       'Registros: '+data.length+'  |  Ingresos: +$'+ti.toFixed(2)+'  |  Egresos: -$'+te.toFixed(2)+'  |  Saldo: '+(ti-te>=0?'+':'')+'$'+(ti-te).toFixed(2));
-    // Desglose por método de pago
     var byM={};
     data.forEach(function(m){
       var k=m.metodoPago||'Sin método';
@@ -1516,25 +1492,18 @@ function reportHistorialPDF(){
   }catch(err){showToast('Error PDF: '+err.message,'err');console.error('PDF:',err);}
 }
 
-
-/* ══ EXCELJS HELPER ══ */
 function xlsColor(argb){return {type:'pattern',pattern:'solid',fgColor:{argb:argb}};}
 function xlsFont(argb,bold,size){return {color:{argb:argb},bold:!!bold,size:size||10,name:'Calibri'};}
 function xlsBorder(){return {top:{style:'thin',color:{argb:'FFD1D5DB'}},left:{style:'thin',color:{argb:'FFD1D5DB'}},bottom:{style:'thin',color:{argb:'FFD1D5DB'}},right:{style:'thin',color:{argb:'FFD1D5DB'}}};}
 
 async function generarExcel(config){
-  // config: {titulo, subtitulo, sheets:[{nombre, columnas:[{header,key,width}], filas, resumen}]}
   const wb=new ExcelJS.Workbook();
   wb.creator='FlujoCaja Pro';
   wb.created=new Date();
 
   config.sheets.forEach(function(sheetCfg){
     const ws=wb.addWorksheet(sheetCfg.nombre,{views:[{state:'frozen',ySplit:5}]});
-
-    // Anchos de columna
     ws.columns=sheetCfg.columnas.map(function(c){return {header:c.header,key:c.key,width:c.width||15};});
-
-    // Fila 1: Título principal
     ws.mergeCells(1,1,1,sheetCfg.columnas.length);
     var t1=ws.getCell(1,1);
     t1.value='FlujoCaja Pro — '+config.titulo;
@@ -1542,8 +1511,6 @@ async function generarExcel(config){
     t1.font=xlsFont('FFF5A428',true,14);
     t1.alignment={vertical:'middle',horizontal:'center'};
     ws.getRow(1).height=28;
-
-    // Fila 2: Subtítulo
     ws.mergeCells(2,1,2,sheetCfg.columnas.length);
     var t2=ws.getCell(2,1);
     t2.value=config.subtitulo||'';
@@ -1551,8 +1518,6 @@ async function generarExcel(config){
     t2.font=xlsFont('FFB4BDD0',false,9);
     t2.alignment={vertical:'middle',horizontal:'center'};
     ws.getRow(2).height=18;
-
-    // Fila 3: Fecha generado
     ws.mergeCells(3,1,3,sheetCfg.columnas.length);
     var t3=ws.getCell(3,1);
     t3.value='Generado: '+new Date().toLocaleString('es-MX');
@@ -1560,13 +1525,9 @@ async function generarExcel(config){
     t3.font=xlsFont('FF6B7899',false,8);
     t3.alignment={vertical:'middle',horizontal:'center'};
     ws.getRow(3).height=16;
-
-    // Fila 4: vacía
     ws.mergeCells(4,1,4,sheetCfg.columnas.length);
     ws.getRow(4).getCell(1).fill=xlsColor('FF0F1422');
     ws.getRow(4).height=6;
-
-    // Fila 5: Headers
     var hRow=ws.getRow(5);
     sheetCfg.columnas.forEach(function(col,i){
       var cell=hRow.getCell(i+1);
@@ -1577,8 +1538,6 @@ async function generarExcel(config){
       cell.alignment={vertical:'middle',horizontal:'center'};
     });
     hRow.height=22;
-
-    // Filas de datos
     sheetCfg.filas.forEach(function(row,ri){
       var dRow=ws.getRow(6+ri);
       var isAlt=ri%2===1;
@@ -1587,7 +1546,6 @@ async function generarExcel(config){
         cell.value=val;
         cell.fill=xlsColor(isAlt?'FFF8FAFC':'FFFFFFFF');
         cell.border=xlsBorder();
-        // Color especial para importes
         var colKey=sheetCfg.columnas[ci]?sheetCfg.columnas[ci].key:'';
         if(colKey==='importe'||colKey==='ingreso'||colKey==='egreso'||colKey==='saldo'){
           cell.numFmt='"$"#,##0.00';
@@ -1604,13 +1562,9 @@ async function generarExcel(config){
       });
       dRow.height=18;
     });
-
-    // Fila vacía separador
     var sepRow=ws.getRow(6+sheetCfg.filas.length);
     ws.mergeCells(6+sheetCfg.filas.length,1,6+sheetCfg.filas.length,sheetCfg.columnas.length);
     sepRow.height=8;
-
-    // Filas de resumen
     if(sheetCfg.resumen){
       sheetCfg.resumen.forEach(function(res,ri){
         var rRow=ws.getRow(7+sheetCfg.filas.length+ri);
@@ -1630,7 +1584,6 @@ async function generarExcel(config){
     }
   });
 
-  // Descargar
   var buf=await wb.xlsx.writeBuffer();
   var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   var url=URL.createObjectURL(blob);
@@ -1639,13 +1592,6 @@ async function generarExcel(config){
   document.body.appendChild(a); a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-}
-
-function xlsStyle(ws,headerRow,totalRows,cols){
-  // Esto aplica anchos de columna
-  if(cols) ws['!cols']=cols;
-  // Merge título
-  if(!ws['!merges']) ws['!merges']=[];
 }
 
 async function reportHistorialXLS(){
@@ -1666,7 +1612,6 @@ async function reportHistorialXLS(){
       m.imagenURL?(m.imagenURL.startsWith('http')?'Ver comprobante':'Con imagen'):'Sin comprobante'
     ];
   });
-  // Desglose por método
   const byM={};
   data.forEach(function(m){
     const k=m.metodoPago||'Sin método';
@@ -1704,7 +1649,6 @@ async function reportHistorialXLS(){
   });
   showToast('📊 Excel descargado ✓');
 }
-
 
 function reportBaicaoPDF(){
   if(typeof window.jspdf==='undefined'){showToast('PDF no disponible — recarga la página','err');return;}
@@ -1745,7 +1689,6 @@ function reportBaicaoPDF(){
     showToast('📄 PDF descargado ✓');
   }catch(err){showToast('Error PDF: '+err.message,'err');console.error('PDF:',err);}
 }
-
 
 async function reportBaicaoXLS(){
   if(typeof ExcelJS==='undefined'){showToast('ExcelJS no cargó — recarga','err');return;}
@@ -1801,7 +1744,6 @@ async function reportBaicaoXLS(){
   showToast('📊 Excel descargado ✓');
 }
 
-
 function reportFlujoPDF(){
   if(!window.jspdf){showToast("Librería PDF no cargó, recarga la página","err");return;}
   const movs=DEMO_MODE?DStore.mov():(()=>{
@@ -1822,12 +1764,12 @@ function reportFlujoPDF(){
     const s=m.ing-m.egr;
     return[m.nombre,m.tipo==='efectivo'?'Efectivo':'Banco','+$'+m.ing.toFixed(2),'-$'+m.egr.toFixed(2),(s>=0?'+':'')+'$'+s.toFixed(2)];
   });
-  const doc=newPDF('Flujo de Caja — Resumen por Método de Pago','Todos los períodos');
-  doc.autoTable({startY:40,head:[['Método / Banco','Tipo','Ingresos','Egresos','Saldo']],body:rows,styles:{fontSize:9,cellPadding:4,textColor:[221,227,242],fillColor:[15,20,34]},headStyles:{fillColor:[21,28,47],textColor:[102,115,143],fontStyle:'bold'},alternateRowStyles:{fillColor:[21,28,47]}});
+  const doc=newPDF('FLUJO DE CAJA — RESUMEN','Todos los períodos',{ti,te});
+  pdfTable(doc,['Método / Banco','Tipo','Ingresos','Egresos','Saldo'],rows,
+    'TOTALES   Ingresos: +$'+ti.toFixed(2)+'   Egresos: -$'+te.toFixed(2)+'   Saldo: '+(ti-te>=0?'+':'')+'$'+(ti-te).toFixed(2));
   doc.save('FlujoCaja_Resumen_'+today()+'.pdf');
-  showToast('PDF descargado ✓');
+  showToast('📄 PDF descargado ✓');
 }
-
 
 function reportFlujoXLS(){
   const movs=DEMO_MODE?DStore.mov():[];
@@ -1854,8 +1796,6 @@ function reportFlujoXLS(){
   const ws=XLSX.utils.aoa_to_sheet(wsData);
   ws['!cols']=[{wch:18},{wch:12},{wch:14},{wch:14},{wch:14}];
   XLSX.utils.book_append_sheet(wb,ws,'Flujo de Caja');
-
-  // Hoja 2: detalle completo
   const ws2Data=[
     ['Tipo','Categoría','Fecha','Importe','Método','Responsable','Descripción','Comprobante'],
   ];
@@ -1870,12 +1810,10 @@ function reportFlujoXLS(){
   const ws2=XLSX.utils.aoa_to_sheet(ws2Data);
   ws2['!cols']=[{wch:12},{wch:18},{wch:12},{wch:14},{wch:14},{wch:18},{wch:30},{wch:20}];
   XLSX.utils.book_append_sheet(wb,ws2,'Detalle movimientos');
-
   XLSX.writeFile(wb,'FlujoCaja_Resumen_'+today()+'.xlsx');
   showToast('Excel descargado ✓');
 }
 
-/* ── FLUJO FIREBASE (para reporte cuando no es demo) ── */
 function reportFlujoConFirebase(tipo){
   if(!DEMO_MODE&&db){
     db.collection('movimientos').get().then(snap=>{
@@ -1929,7 +1867,6 @@ function registerSW(){
       .then(()=>console.log('SW registrado'))
       .catch(e=>console.log('SW error:',e));
   }
-  // Banner de instalación
   let deferredPrompt=null;
   window.addEventListener('beforeinstallprompt',e=>{
     e.preventDefault();deferredPrompt=e;
@@ -1968,7 +1905,6 @@ window.addEventListener('beforeinstallprompt',e=>{window._deferredPrompt=e;});
 
 /* ══ EDITAR REGISTRO - FUNCIONES DEFINITIVAS ══ */
 function abrirEditar(id){
-  // Buscar el registro
   var m=window['rec_'+id]||null;
   if(!m){
     for(var i=0;i<movimientosData.length;i++){
@@ -1979,17 +1915,14 @@ function abrirEditar(id){
   
   editingId=id; editFile=null;
   
-  // Quitar modal anterior
   var prev=document.getElementById('editModalDyn');
   if(prev) prev.remove();
   
-  // Opciones categoría
   var catOpts='<option value="">Seleccionar...</option>';
   for(var ci=0;ci<configData.categorias.length;ci++){
     var c=configData.categorias[ci];
     catOpts+='<option value="'+c.nombre+'"'+(c.nombre===m.categoria?' selected':'')+'>'+c.nombre+'</option>';
   }
-  // Opciones método
   var metOpts='<option value="">Seleccionar...</option>';
   for(var mi=0;mi<configData.metodos.length;mi++){
     var mt=configData.metodos[mi];
@@ -2067,7 +2000,7 @@ async function guardarEdicion(){
       var arr=DStore.mov();
       var idx=arr.findIndex(function(x){return x.id===editingId;});
       if(idx>=0) arr[idx]=Object.assign({},arr[idx],update);
-      DStore.saveMov(arr);demoNotify();
+      DStore.saveMov(arr);_demoNotify();
     } else {
       await db.collection('movimientos').doc(editingId).update(update);
     }
